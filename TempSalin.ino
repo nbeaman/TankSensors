@@ -211,15 +211,23 @@ void SetVariableFromWebRequest(String SetVarCommand){
   }
   if(tempStr == "tempmax"){
     String tempVal = SetVarCommand.substring(colonCharIndex+1,SetVarCommand.length()); 
-    GV_DOx_TOOHIGHVALUE = tempVal.toFloat();
+    GV_TEMP_TOOHIGHVALUE = tempVal.toFloat();
   }   
   if(tempStr == "tempmin"){
     String tempVal = SetVarCommand.substring(colonCharIndex+1,SetVarCommand.length()); 
-    GV_DOx_TOOLOWVALUE = tempVal.toFloat();
-  }  
+    GV_TEMP_TOOLOWVALUE = tempVal.toFloat();
+  } 
+     if(tempStr == "salinmax"){
+    String tempVal = SetVarCommand.substring(colonCharIndex+1,SetVarCommand.length()); 
+    GV_SALIN_TOOHIGHVALUE = tempVal.toFloat();
+  }   
+  if(tempStr == "salinmin"){
+    String tempVal = SetVarCommand.substring(colonCharIndex+1,SetVarCommand.length()); 
+    GV_SALIN_TOOLOWVALUE = tempVal.toFloat();
+  }
 }
 
-void smoov(int L1, int L2, int color){
+void LED_smoov(int L1, int L2, int color){
   for (int ww=0; ww<=255; ww=ww+(LED_NUMBER_OF_LEDS/7)){
     if (!GV_GROUPFIND) ww=255+1;
     leds[L1]=CHSV(color,255,255-ww);
@@ -237,13 +245,10 @@ void LED_Show_Group_Find_Color(int color){
       int L2=cii+1;
       if (L2 == LEDTopIndex+1) L2=1;
       if (!GV_GROUPFIND) cii=LEDTopIndex+1;
-      smoov(L1,L2,color);
+      LED_smoov(L1,L2,color);
     }
   }
 }
-
-//char[] chArray = "some characters";
-//String str(chArray);
 
 //-------------------------------[ Variables used in LOOP ]------------
 char computerdata[20];           //we make a 20 byte character array to hold incoming data from a pc/mac/other.
@@ -353,7 +358,7 @@ void LED_Center_Blue(bool ON){
 }
 
 void LED_Clear(){
-  for (int led=0; led!=7; led++){
+  for (int led=0; led!=LED_NUMBER_OF_LEDS; led++){
     leds[led] = CRGB::Black;
   }
   FastLED.show();
@@ -434,31 +439,30 @@ void BUTTON_WasItPressed_ChangeLCD(){
    }  
 }
 
+void LED_Alert(char TooWhat){
+  int color;
+  if(TooWhat=='H') color=50;
+  else color=160;
+  for(int v=0; v<15; v++){
+     fill_solid(leds, LED_NUMBER_OF_LEDS, CRGB(255,  255,    0));          //yellow
+     FastLED.show();
+     delay(30);
+     LED_Clear();
+     delay(30);
+     }
+  LED_Clear();  
+}
+
 void SensorHeartBeat() {
 
   if ((millis() - HeartBeatMillis) > 1000) {
-    
+    //GV_DOX,GV_TEMP,GV_SALIN
     if (CODE_FOR_DOx_DEVICE){
-       if ( (GV_SENSOR_DATA.toFloat() >= GV_DOx_TOOHIGHVALUE) || (GV_SENSOR_DATA.toFloat() <= GV_DOx_TOOLOWVALUE) ){
-          for(int v=0; v<15; v++){
-            fill_solid(leds, LED_NUMBER_OF_LEDS, CRGB(255,  255,    0));          //yellow
-            FastLED.show();
-            delay(30);
-            LED_Clear();
-            delay(30);
-          }
-      }   
+       if ( (GV_DOX >= GV_DOx_TOOHIGHVALUE) || (GV_DOX <= GV_DOx_TOOLOWVALUE) ) LED_Alert('H');   
     }
     if (CODE_FOR_TEMPSALINITY_DEVICE){
-       if ( (GV_SENSOR_DATA.toFloat() >= GV_TEMP_TOOHIGHVALUE) || (GV_SENSOR_DATA.toFloat() <= GV_TEMP_TOOLOWVALUE) ){
-          for(int v=0; v<15; v++){
-            fill_solid(leds, LED_NUMBER_OF_LEDS, CRGB(255,  255,    0));          //yellow
-            FastLED.show();
-            delay(30);
-            LED_Clear();
-            delay(30);
-          }
-      }
+       if ( (GV_TEMP >= GV_TEMP_TOOHIGHVALUE) || (GV_TEMP <= GV_TEMP_TOOLOWVALUE) ) LED_Alert('H');
+       if ( (GV_SALIN >= GV_SALIN_TOOHIGHVALUE) || (GV_SALIN <= GV_SALIN_TOOLOWVALUE) ) LED_Alert('H');      
     }
     if (HeartBeat != ' ') {
       HeartBeat = ' ';
@@ -562,7 +566,12 @@ void SendCommandToSensorAndSetReturnGVVariables(String command) {
   }
   if (Ccommand[0] != 'r') LED_sensor_return_code_Fade(code);
   
-  GV_SENSOR_DATA = incoming_data;         
+  GV_SENSOR_DATA = incoming_data;
+  
+  // set GV_DOX,GV_TEMP,GV_SALIN
+  if(CODE_FOR_DOx_DEVICE) GV_DOX=GV_SENSOR_DATA.toFloat();
+  if(CODE_FOR_TEMPSALINITY_DEVICE && channel==100) GV_SALIN=GV_SENSOR_DATA.toFloat();
+  if(CODE_FOR_TEMPSALINITY_DEVICE && channel==102) GV_TEMP=GV_SENSOR_DATA.toFloat();
 
   GV_WEB_RESPONSE_TEXT=GV_SENSOR_DATA + "," + GV_SENSOR_RESPONSE;
 
