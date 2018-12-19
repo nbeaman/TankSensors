@@ -5,16 +5,19 @@
 #include <LiquidCrystal_I2C.h>    //LCD
 #include <Button.h>               //Button
 #include <FastLED.h>              //NeoPixel LED Lights
+#include <HTTPClient.h>
 
 //-----------[ DBUG ]---------
 const int DBUG = 0;          // Set this to 0 for no serial output for debugging, 1 for moderate debugging, 2 for FULL debugging to see serail output in the Arduino GUI.
 //----------------------------
 
 //-----------[ CUSTOMIZE ]----------------
-bool CODE_FOR_DOx_DEVICE          = false;
-bool CODE_FOR_TEMPSALINITY_DEVICE = true;
-char* ssid                        = "HOME-55A2";
-char* password                    = "3E7D73F4CED37FAC";
+bool CODE_FOR_DOx_DEVICE          = true;
+bool CODE_FOR_TEMPSALINITY_DEVICE = false;
+const char* ssid                  = "HOME-55A2";
+const char* password              = "3E7D73F4CED37FAC";
+#define LED_NUMBER_OF_LEDS        7                  // 7 for Neopixel Jewel, 12 for Neopixel Ring
+
 float GV_DOx_TOOHIGHVALUE         = 10.00;
 float GV_DOx_TOOLOWVALUE          = 6.00;
 float GV_TEMP_TOOHIGHVALUE        = 75.00;
@@ -23,7 +26,6 @@ float GV_SALIN_TOOHIGHVALUE       = 999.00;
 float GV_SALIN_TOOLOWVALUE        = -1.00;
 int LED_DEFAULT_BRIGHTNESS        = 5;
 #define LED_DATA_PIN              15
-#define LED_NUMBER_OF_LEDS        12                  // 7 for Neopixel Jewel, 12 for Neopixel Ring
 #define DOxSensorAddress          97                 // default I2C ID number for EZO D.O. Circuit.
 #define SalinitySensorAddress     100
 #define TemperatureSensorAddress  102
@@ -97,7 +99,31 @@ void setup() {
   lcd.begin(); //initialize the lcd
 
   //-----------------------------[ WEB SERVER ]-----------------------------------------------
-  ConnectToWifi(ssid, password);
+  //WL_NO_SHIELD = 255, WL_IDLE_STATUS = 0, WL_NO_SSID_AVAIL = 1, WL_SCAN_COMPLETED = 2, WL_CONNECTED = 3, WL_CONNECT_FAILED = 4, WL_CONNECTION_LOST = 5, WL_DISCONNECTED = 6
+
+                              //-------------------------------------------------------------
+  WiFi.disconnect();          // NOTE: Firebeetle stopped connecting to a WiFi (just looped).  Adding this fixed the problem.  Weird!
+                              //-------------------------------------------------------------
+  
+  WiFi.begin(ssid, password);
+
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(2000);
+    Serial.println(WiFi.status());
+    LCD_DISPLAY("Wifi..", 0, 0, ClearLCD, PrintSerial);
+    LCD_DISPLAY(ssid, 0, 1, NoClearLCD, PrintSerial);
+  }
+  
+  lcd.clear();
+  
+  IPAddress IP=WiFi.localIP();
+  GV_LCD_MAIN_TEXT[0]=String(IP[0]) + '.' + String(IP[1]) + '.' + String(IP[2]) + '.' + String(IP[3]);
+  Serial.println(GV_LCD_MAIN_TEXT[0]);
+  
+  byte mac[6];
+  WiFi.macAddress(mac);
+  GV_LCD_MAIN_TEXT[2]=String(mac[5],HEX) + String(mac[4],HEX) + String(mac[3],HEX) + String(mac[2],HEX) + String(mac[1],HEX) + String(mac[0],HEX);
+  Serial.println(GV_LCD_MAIN_TEXT[2]);  
   
   //-----------------[ read web page]-------------------------------
   server.on("/read", HTTP_GET, [](AsyncWebServerRequest * request) {
@@ -211,48 +237,7 @@ void SetVariableFromWebRequest(String SetVarCommand){
   }
 }
 
-void ConnectToWifi(char* ssid, char* password){
-  WiFi.begin(ssid, password);
 
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(1000);
-    LCD_DISPLAY("Wifi..", 0, 0, ClearLCD, PrintSerial);
-    LCD_DISPLAY(ssid, 0, 1, NoClearLCD, PrintSerial);
-  }
-  lcd.clear();
-  
-  IPAddress IP=WiFi.localIP();
-  GV_LCD_MAIN_TEXT[0]=String(IP[0]) + '.' + String(IP[1]) + '.' + String(IP[2]) + '.' + String(IP[3]);
-  Serial.println(GV_LCD_MAIN_TEXT[0]);
-  
-  byte mac[6];
-  WiFi.macAddress(mac);
-  GV_LCD_MAIN_TEXT[2]=String(mac[5],HEX) + String(mac[4],HEX) + String(mac[3],HEX) + String(mac[2],HEX) + String(mac[1],HEX) + String(mac[0],HEX);
-  Serial.println(GV_LCD_MAIN_TEXT[2]);  
-}
-
-void LED_smoov(int L1, int L2, int color){
-  for (int ww=0; ww<=255; ww=ww+(LED_NUMBER_OF_LEDS/7)){
-    if (!GV_GROUPFIND) ww=255+1;
-    leds[L1]=CHSV(color,255,255-ww);
-    leds[L2]=CHSV(color,255,ww);
-    FastLED.show();
-    //delay(5);
-  }
-}
-
-void LED_Show_Group_Find_Color(int color){
-  for (int ci=1; ci<=LED_NUMBER_OF_LEDS; ci++){
-    int LEDTopIndex = LED_NUMBER_OF_LEDS-1;
-    for(int cii=1; cii <= LEDTopIndex; cii++){
-      int L1=cii;
-      int L2=cii+1;
-      if (L2 == LEDTopIndex+1) L2=1;
-      if (!GV_GROUPFIND) cii=LEDTopIndex+1;
-      LED_smoov(L1,L2,color);
-    }
-  }
-}
 
 //-------------------------------[ Variables used in LOOP ]------------
 char computerdata[20];           //we make a 20 byte character array to hold incoming data from a pc/mac/other.
@@ -267,13 +252,11 @@ char *ReadDOx = &R;
 
 //=======================================[ LOOP ]===================================================
 void loop() {
-  
+
   if (GV_FIND){                                                         // GV_FIND is set to true if web page ipaddress/findon is called.  Nothing is supposed to function while this is happening.
     FastLED.setBrightness(100);
     while( GV_FIND == 1 ){                                              // GV_FIND is set to false if web page ipaddress/findoff is called.
-      if (CODE_FOR_DOx_DEVICE){
-        LED_FIND_LIGHT_FOR_DOx();
-      }
+        LED_FIND_LIGHT();
     }
     LED_Clear();
     FastLED.setBrightness(LED_DEFAULT_BRIGHTNESS);
@@ -338,9 +321,25 @@ void loop() {
   //  server.begin();
   //}
 
-  if (WiFi.status() == WL_CONNECTION_LOST) {
+  if (WiFi.status() != WL_CONNECTED) {
     Serial.println("Wifi Lost, reconnecting: ");
-    ConnectToWifi(ssid, password);
+    lcd.clear();
+    WiFi.disconnect();          // NOTE: Firebeetle stopped connecting to a WiFi (just looped).  Adding this fixed the problem.  Weird!
+    WiFi.begin(ssid, password);
+    while (WiFi.status() != WL_CONNECTED) {
+      delay(2000);
+      Serial.println(WiFi.status());
+      LCD_DISPLAY("Wifi..", 0, 0, ClearLCD, PrintSerial);
+      LCD_DISPLAY(ssid, 0, 1, NoClearLCD, PrintSerial);
+    }
+    lcd.clear();
+    IPAddress IP=WiFi.localIP();
+    GV_LCD_MAIN_TEXT[0]=String(IP[0]) + '.' + String(IP[1]) + '.' + String(IP[2]) + '.' + String(IP[3]);
+    Serial.println(GV_LCD_MAIN_TEXT[0]);
+    byte mac[6];
+    WiFi.macAddress(mac);
+    GV_LCD_MAIN_TEXT[2]=String(mac[5],HEX) + String(mac[4],HEX) + String(mac[3],HEX) + String(mac[2],HEX) + String(mac[1],HEX) + String(mac[0],HEX);
+    Serial.println(GV_LCD_MAIN_TEXT[2]);
   }
   
   SensorHeartBeat();
@@ -354,6 +353,30 @@ void loop() {
 
 
 //===============================[ FUNCTIONS ]=========================
+
+void LED_smoov(int L1, int L2, int color){
+  for (int ww=0; ww<=255; ww=ww+(LED_NUMBER_OF_LEDS/7)){
+    if (!GV_GROUPFIND) ww=255+1;
+    leds[L1]=CHSV(color,255,255-ww);
+    leds[L2]=CHSV(color,255,ww);
+    FastLED.show();
+    //delay(5);
+  }
+}
+
+void LED_Show_Group_Find_Color(int color){
+  for (int ci=1; ci<=LED_NUMBER_OF_LEDS; ci++){
+    int LEDTopIndex = LED_NUMBER_OF_LEDS-1;
+    for(int cii=1; cii <= LEDTopIndex; cii++){
+      int L1=cii;
+      int L2=cii+1;
+      if (L2 == LEDTopIndex+1) L2=1;
+      if (!GV_GROUPFIND) cii=LEDTopIndex+1;
+      LED_smoov(L1,L2,color);
+    }
+  }
+}
+
 void LED_Center_Blue(bool ON){
   LED_Clear();
   if (ON) {
@@ -372,7 +395,7 @@ void LED_Clear(){
   FastLED.show();
 }
 
-void LED_FIND_LIGHT_FOR_DOx(){
+void LED_FIND_LIGHT(){
   fill_solid(leds, LED_NUMBER_OF_LEDS, CRGB(255,  255,  255));   //white
   delay(40);
   FastLED.show();
@@ -519,7 +542,9 @@ void SendCommandToSensorAndSetReturnGVVariables( String command ) {
     else time_ = 300;                                                                   //if not 300ms will do
   }
    if ( CODE_FOR_TEMPSALINITY_DEVICE ){
-      time_ = 1000;
+                     //----------------------------------------------------
+      time_ = 600;   //NOTE: the documentation set the time to 1000 (1 sec), but that slowed things down to 2 seconds because it reads two Sensors in a row.
+                     //----------------------------------------------------      
   }                                            
     
   //if (strcmp(computerdata, "sleep") != 0) {  //if the command that has been sent is NOT the sleep command, wait the correct amount of time and request data.
