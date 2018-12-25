@@ -4,6 +4,7 @@
 #include <Wire.h>                 //enable I2C.
 #include <LiquidCrystal_I2C.h>    //LCD
 #include <Button.h>               //Button
+#include "IFTTTWebhook.h"
 
 #include <DoxLED.h>               // My custom library that uses FastLED.h
 DoxLED DoxLED;
@@ -58,10 +59,11 @@ String GV_SENSOR_RESPONSE       = "NONE";           // Holds latest response fro
 String GV_WEB_RESPONSE_TEXT     = "";
 
 //---
-unsigned long SensorAutoReadingMillis = millis();   // Stores milliseconds since last D.O. reading.
-unsigned long HeartBeatMillis         = millis();
-unsigned long WebServerRestartMillis  = millis();
-char HeartBeat                        = ' ';
+unsigned long SensorAutoReadingMillis     = millis();   // Stores milliseconds since last D.O. reading.
+unsigned long HeartBeatMillis             = millis();
+unsigned long WebServerRestartMillis      = millis();
+unsigned long LastNotificationSentMillis  = millis(); 
+char HeartBeat                            = ' ';
 //----------------------------------------
 
 //---------------[ PRE-SETUP]-------------
@@ -375,12 +377,20 @@ void BUTTON_WasItPressed_ChangeLCD(){
    }  
 }
 
+void SendSMSAlert(){
+  if( (millis() - LastNotificationSentMillis) > 900000){    //Every 15 minutes
+    IFTTTWebhook wh("dOO4GGcvxO_pBa0QPwHN19", "DOx_Problem_TooLow");
+    wh.trigger();
+    Serial.println("Trigger Sent");
+    LastNotificationSentMillis = millis();    
+  }
+}
 void SensorHeartBeat() {
 
   if ((millis() - HeartBeatMillis) > 1000) {
     //GV_DOX,GV_TEMP,GV_SALIN
     if (CODE_FOR_DOx_DEVICE){
-       if ( (GV_DOX >= GV_DOx_TOOHIGHVALUE) || (GV_DOX <= GV_DOx_TOOLOWVALUE) ) DoxLED.LED_Alert('H');   
+       if ( (GV_DOX >= GV_DOx_TOOHIGHVALUE) || (GV_DOX <= GV_DOx_TOOLOWVALUE) ) { DoxLED.LED_Alert('H'); SendSMSAlert(); }
     }
     if (CODE_FOR_TEMPSALINITY_DEVICE){
        if ( (GV_TEMP >= GV_TEMP_TOOHIGHVALUE) || (GV_TEMP <= GV_TEMP_TOOLOWVALUE) ) DoxLED.LED_Alert('H');
