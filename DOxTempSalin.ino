@@ -23,6 +23,7 @@ float GV_TEMP_TOOHIGHVALUE        = 75.00;
 float GV_TEMP_TOOLOWVALUE         = 40.00;
 float GV_SALIN_TOOHIGHVALUE       = 999.00;
 float GV_SALIN_TOOLOWVALUE        = -1.00;
+String  GV_NOTIFY_ON              = "Y";
 #define DOxSensorAddress          97                 // default I2C ID number for EZO D.O. Circuit.
 #define SalinitySensorAddress     100
 #define TemperatureSensorAddress  102
@@ -66,6 +67,7 @@ char HeartBeat                        = ' ';
 //---------------[ PRE-SETUP]-------------
 AsyncWebServer server(80);              // Setup Web Server Port.
 const char* PARAM_MESSAGE = "command";     // HTTP_GET parameter to look for.
+String MACaddress;
 //----------------------------------------
 
 //================================================================================================
@@ -92,15 +94,23 @@ void setup() {
   lcd.clear();
   
   IPAddress IP=WiFi.localIP();
-  GV_LCD_MAIN_TEXT[0]=String(IP[0]) + '.' + String(IP[1]) + '.' + String(IP[2]) + '.' + String(IP[3]);
+  GV_LCD_MAIN_TEXT[3]=String(IP[0]) + '.' + String(IP[1]) + '.' + String(IP[2]) + '.' + String(IP[3]);
   Serial.println(GV_LCD_MAIN_TEXT[0]);
   
   byte mac[6];
   WiFi.macAddress(mac);
-  GV_LCD_MAIN_TEXT[2]=String(mac[5],HEX) + String(mac[4],HEX) + String(mac[3],HEX) + String(mac[2],HEX) + String(mac[1],HEX) + String(mac[0],HEX);
+  MACaddress   = String(mac[5],HEX) + String(mac[4],HEX) + String(mac[3],HEX) + String(mac[2],HEX) + String(mac[1],HEX) + String(mac[0],HEX);
+  GV_LCD_MAIN_TEXT[0] = MACaddress;
   Serial.println(GV_LCD_MAIN_TEXT[2]);
 
+  GV_LCD_MAIN_TEXT[2]= "H" + String(GV_DOx_TOOHIGHVALUE) + " L" + String(GV_DOx_TOOLOWVALUE);
+  
   //---------------------------------[ Sensor Web Page ]-----------------------------------------
+  //-----------------[ / ]----------------------
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest * request) {
+    request->send(200, "text/plain", "DoxMAX: " + String(GV_DOx_TOOHIGHVALUE) + "<BR>DoxMIN: " + String(GV_DOx_TOOLOWVALUE) + "<br>" + MACaddress);
+    });
+      
   //-----------------[ /read ]------------------
   server.on("/read", HTTP_GET, [](AsyncWebServerRequest * request) {
     request->send(200, "text/plain", GV_WEB_RESPONSE_TEXT);
@@ -313,6 +323,11 @@ void SetVariableFromWebRequest(String SetVarCommand){
     String tempVal = SetVarCommand.substring(colonCharIndex+1,SetVarCommand.length()); 
     GV_SALIN_TOOLOWVALUE = tempVal.toFloat();
   }
+  if(tempStr == "notify"){
+    String tempVal = SetVarCommand.substring(colonCharIndex+1,SetVarCommand.length());
+    if(tempVal == "y") GV_NOTIFY_ON="Y";
+    else GV_NOTIFY_ON="N";
+  }  
 }
 
 String AddCarrageReturnIfNeeded(String str){   
@@ -382,6 +397,9 @@ void SensorHeartBeat() {
     }
     if(DBUG==2) Serial.println(HeartBeat);
     LCD_DISPLAY(&HeartBeat, 15, 0, NoClearLCD, NoSerial);
+
+    if(GV_NOTIFY_ON == "Y") LCD_DISPLAY("Y",15,1,NoClearLCD,NoSerial);
+    else LCD_DISPLAY(" ",15,1,NoClearLCD,NoSerial);
     
     HeartBeatMillis = millis();
   }
@@ -412,13 +430,6 @@ void SendCommandToSensorAndSetReturnGVVariables(String command) {
   Wire.beginTransmission(channel);                                 //call the circuit by its ID number.
   Wire.write(Ccommand);                                            //transmit the command that was sent through the serial port.
   Wire.endTransmission();                                          //end the I2C data transmission.
-    
-  //command[0] = tolower(command[0]);
-  //command=AddCarrageReturnIfNeeded(command);
-  //command.toCharArray(Ccommand,20);
-  //Wire.beginTransmission(DOxSensorAddress);                        //call the circuit by its ID number.
-  //Wire.write(Ccommand);                                            //transmit the command that was sent through the serial port.
-  //Wire.endTransmission();                                          //end the I2C data transmission.
  
   if (DBUG){ Serial.print("DOc command:("); Serial.print(Ccommand); Serial.print(")"); }
 
