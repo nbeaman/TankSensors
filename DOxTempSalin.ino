@@ -13,22 +13,29 @@ DoxLED DoxLED;
 const int DBUG = 0;               // Set this to 0 for no serial output for debugging, 1 for moderate debugging, 2 for FULL debugging to see serail output in the Arduino GUI.
 //----------------------------
 
-//-----------[ CUSTOMIZE ]----------------
-bool CODE_FOR_DOx_DEVICE          = true;
-bool CODE_FOR_TEMPSALINITY_DEVICE = false;
-const char* ssid                  = "HOME-55A2";
-const char* password              = "3E7D73F4CED37FAC";
-float GV_DOx_TOOHIGHVALUE         = 10.00;
-float GV_DOx_TOOLOWVALUE          = 6.00;
-float GV_TEMP_TOOHIGHVALUE        = 75.00;
-float GV_TEMP_TOOLOWVALUE         = 40.00;
-float GV_SALIN_TOOHIGHVALUE       = 999.00;
-float GV_SALIN_TOOLOWVALUE        = -1.00;
-String  GV_NOTIFY_ON              = "Y";
-#define DOxSensorAddress          97                 // default I2C ID number for EZO D.O. Circuit.
-#define SalinitySensorAddress     100
-#define TemperatureSensorAddress  102
-//----------------------------------------
+//============[ CODE IS FOR WHICH SENSOR ]==========
+#define CODE_FOR_DOx_DEVICE           false
+#define CODE_FOR_TEMPSALINITY_DEVICE  true
+// REMEMBER: Change LED_NUMBER_OF_LEDS in DoxLED.cpp
+//-------------
+#if (CODE_FOR_DOx_DEVICE)
+#include <DoxConfig.h>
+#else
+#include <TempSalinConfig.h>
+#endif
+//==================================================
+
+//-----------[ SENSOR LIMITS ]----------------
+float   GV_DOx_TOOHIGHVALUE         = 10.00;
+float   GV_DOx_TOOLOWVALUE          = 6.00;
+float   GV_TEMP_TOOHIGHVALUE        = 75.00;
+float   GV_TEMP_TOOLOWVALUE         = 40.00;
+float   GV_SALIN_TOOHIGHVALUE       = 999.00;
+float   GV_SALIN_TOOLOWVALUE        = -1.00;
+String  GV_NOTIFY_ON                = "Y";
+
+//--------------------------------------------
+
 
 //----------[ FUNCTION SWITCH VARS ]------
 bool  GV_WEB_REQUEST_IN_PROGRESS            = false;
@@ -42,9 +49,9 @@ bool  GV_BOOTING_UP                         = true;
 //----------------------------------------
 
 //BUTTON
-Button button1(2);                              // Connect your button between pin 2 and GND
+Button button1(2);                              // Connect button between pin 2 and GND
 int     GV_LCD_MAIN_TEXT_INDEX  = 0;            // Text to show in top left of LCD (DO sensor name, IP Address, Program version, FireBeatle version.  Depending on the button.
-String  GV_LCD_MAIN_TEXT[4];                    //Text to cycle through when button is pressed.
+String  GV_LCD_MAIN_TEXT[4];                    // Text to cycle through when button is pressed.
 //-----
  
 // LCD
@@ -73,8 +80,9 @@ String MACaddress;
 //----------------------------------------
 
 void SendAlert_IFTTT(String eventName, String val1, String val2){
+  if((millis() - LastNotificationSentMillis) > 900000){
     HTTPClient http;
-    
+    Serial.println("Notification Sent");
     http.begin("https://maker.ifttt.com/trigger/" + eventName + "/with/key/dOO4GGcvxO_pBa0QPwHN19");
     //http.addHeader("Content-Type", "text/plain");             //Specify content-type header
     http.addHeader("Content-Type", "application/json");
@@ -83,7 +91,11 @@ void SendAlert_IFTTT(String eventName, String val1, String val2){
     Serial.println(JSONtext);
 
     int httpResponseCode = http.POST(JSONtext);   //Send the actual POST request
-    // * could check for response - on my todo list * //
+    // * could check for response - on my todo list * // 
+
+    LastNotificationSentMillis = millis();
+  }
+
 }
 
 //================================================================================================
@@ -100,7 +112,7 @@ void setup() {
   lcd.begin();                  //initialize the lcd
 
   //-----------------------------[ WEB SERVER ]-----------------------------------------------
-  WiFi.begin(ssid, password);
+  WiFi.begin(config_WIFI_SSID, config_WIFI_PASSWORD);
 
   while (WiFi.status() != WL_CONNECTED) {
     delay(1000);
@@ -249,7 +261,7 @@ void loop() {
       SendCommandToSensorAndSetReturnGVVariables("name,?\0");
     }
     if (CODE_FOR_TEMPSALINITY_DEVICE){
-      SendCommandToSensorAndSetReturnGVVariables("100:name,?\0");
+      SendCommandToSensorAndSetReturnGVVariables(String(config_SalinitySensorAddress) + ":name,?\0");
     }    
     
     Serial.println(GV_SENSOR_DATA);
@@ -280,9 +292,9 @@ void loop() {
       LCD_DISPLAY("  ", GV_SENSOR_DATA.length(), 1, NoClearLCD, NoSerial);
     }
     if (CODE_FOR_TEMPSALINITY_DEVICE){
-      SendCommandToSensorAndSetReturnGVVariables("102:r");
+      SendCommandToSensorAndSetReturnGVVariables(String(config_TemperatureSensorAddress) + ":r");
       LCD_DISPLAY(GV_SENSOR_DATA + "  ", 0, 1, NoClearLCD, PrintSerial);
-      SendCommandToSensorAndSetReturnGVVariables("100:r");
+      SendCommandToSensorAndSetReturnGVVariables(String(config_SalinitySensorAddress) + ":r");
       LCD_DISPLAY(GV_SENSOR_DATA + " ", 16-GV_SENSOR_DATA.length(), 1, NoClearLCD, PrintSerial);
     }
     SensorAutoReadingMillis = millis();
@@ -429,7 +441,7 @@ void SendCommandToSensorAndSetReturnGVVariables(String command) {
   
   if (CODE_FOR_DOx_DEVICE){
     SensorCommand = command;
-    channel = DOxSensorAddress;
+    channel = config_DOxSensorAddress;
   }
   if (CODE_FOR_TEMPSALINITY_DEVICE){
       int colonCharIndex = command.indexOf(':');
@@ -504,8 +516,8 @@ void SendCommandToSensorAndSetReturnGVVariables(String command) {
   
   // set GV_DOX,GV_TEMP,GV_SALIN
   if(CODE_FOR_DOx_DEVICE)                           GV_DOX    = GV_SENSOR_DATA.toFloat();
-  if(CODE_FOR_TEMPSALINITY_DEVICE && channel==100)  GV_SALIN  = GV_SENSOR_DATA.toFloat();
-  if(CODE_FOR_TEMPSALINITY_DEVICE && channel==102)  GV_TEMP   = GV_SENSOR_DATA.toFloat();
+  if(CODE_FOR_TEMPSALINITY_DEVICE && channel==config_SalinitySensorAddress)  GV_SALIN  = GV_SENSOR_DATA.toFloat();
+  if(CODE_FOR_TEMPSALINITY_DEVICE && channel==config_TemperatureSensorAddress)  GV_TEMP   = GV_SENSOR_DATA.toFloat();
 
   GV_WEB_RESPONSE_TEXT=GV_SENSOR_DATA + "," + GV_SENSOR_RESPONSE;
 
