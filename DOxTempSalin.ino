@@ -117,7 +117,7 @@ void setup() {
   while (WiFi.status() != WL_CONNECTED) {
     delay(1000);
     LCD_DISPLAY("Wifi..", 0, 0, ClearLCD, PrintSerial);
-    LCD_DISPLAY(ssid, 0, 1, NoClearLCD, PrintSerial);
+    LCD_DISPLAY(config_WIFI_SSID, 0, 1, NoClearLCD, PrintSerial);
   }
   lcd.clear();
   
@@ -293,9 +293,9 @@ void loop() {
     }
     if (CODE_FOR_TEMPSALINITY_DEVICE){
       SendCommandToSensorAndSetReturnGVVariables(String(config_TemperatureSensorAddress) + ":r");
-      LCD_DISPLAY(GV_SENSOR_DATA + "  ", 0, 1, NoClearLCD, PrintSerial);
+      LCD_DISPLAY(GV_SENSOR_DATA + "   ", 0, 1, NoClearLCD, PrintSerial);
       SendCommandToSensorAndSetReturnGVVariables(String(config_SalinitySensorAddress) + ":r");
-      LCD_DISPLAY(GV_SENSOR_DATA + " ", 16-GV_SENSOR_DATA.length(), 1, NoClearLCD, PrintSerial);
+      LCD_DISPLAY(GV_SENSOR_DATA + " ", 13-GV_SENSOR_DATA.length(), 1, NoClearLCD, PrintSerial);
     }
     SensorAutoReadingMillis = millis();
     GV_READ_REQUEST_IN_PROGRESS=false;
