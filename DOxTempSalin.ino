@@ -4,7 +4,7 @@
 #include <Wire.h>                 //enable I2C.
 #include <LiquidCrystal_I2C.h>    //LCD
 #include <Button.h>               //Button
-#include "IFTTTWebhook.h"
+#include <HTTPClient.h>
 
 #include <DoxLED.h>               // My custom library that uses FastLED.h
 DoxLED DoxLED;
@@ -72,6 +72,19 @@ const char* PARAM_MESSAGE = "command";     // HTTP_GET parameter to look for.
 String MACaddress;
 //----------------------------------------
 
+void SendAlert_IFTTT(String eventName, String val1, String val2){
+    HTTPClient http;
+    
+    http.begin("https://maker.ifttt.com/trigger/" + eventName + "/with/key/dOO4GGcvxO_pBa0QPwHN19");
+    //http.addHeader("Content-Type", "text/plain");             //Specify content-type header
+    http.addHeader("Content-Type", "application/json");
+
+    String JSONtext = "{ \"value1\" : \"" + val1 + "\", \"value2\" : \"" + val2 + "\" }";
+    Serial.println(JSONtext);
+
+    int httpResponseCode = http.POST(JSONtext);   //Send the actual POST request
+    // * could check for response - on my todo list * //
+}
 //================================================================================================
 //===========================================[ SETUP ]============================================
 //================================================================================================
@@ -378,9 +391,11 @@ void BUTTON_WasItPressed_ChangeLCD(){
 }
 
 void SendSMSAlert(){
+
+  String v1ptr, v2ptr;
+
   if( (millis() - LastNotificationSentMillis) > 900000){    //Every 15 minutes
-    IFTTTWebhook wh("dOO4GGcvxO_pBa0QPwHN19", "DOx_Problem_TooLow");
-    wh.trigger();
+    //curl -X POST -H "Content-Type: application/json" -d '{"value1":"Bonefish-T1","value2":"5.80"}' https://maker.ifttt.com/trigger/DOx_Problem_TooLow/with/key/dOO4GGcvxO_pBa0QPwHN19 ;
     Serial.println("Trigger Sent");
     LastNotificationSentMillis = millis();    
   }
@@ -390,7 +405,7 @@ void SensorHeartBeat() {
   if ((millis() - HeartBeatMillis) > 1000) {
     //GV_DOX,GV_TEMP,GV_SALIN
     if (CODE_FOR_DOx_DEVICE){
-       if ( (GV_DOX >= GV_DOx_TOOHIGHVALUE) || (GV_DOX <= GV_DOx_TOOLOWVALUE) ) { DoxLED.LED_Alert('H'); SendSMSAlert(); }
+       if ( (GV_DOX >= GV_DOx_TOOHIGHVALUE) || (GV_DOX <= GV_DOx_TOOLOWVALUE) ) { DoxLED.LED_Alert('H'); SendAlert_IFTTT("DOx_Problem_TooLow", GV_LCD_MAIN_TEXT[1], GV_SENSOR_DATA); }
     }
     if (CODE_FOR_TEMPSALINITY_DEVICE){
        if ( (GV_TEMP >= GV_TEMP_TOOHIGHVALUE) || (GV_TEMP <= GV_TEMP_TOOLOWVALUE) ) DoxLED.LED_Alert('H');
