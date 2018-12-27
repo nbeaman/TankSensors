@@ -85,6 +85,7 @@ void SendAlert_IFTTT(String eventName, String val1, String val2){
     int httpResponseCode = http.POST(JSONtext);   //Send the actual POST request
     // * could check for response - on my todo list * //
 }
+
 //================================================================================================
 //===========================================[ SETUP ]============================================
 //================================================================================================
@@ -390,26 +391,16 @@ void BUTTON_WasItPressed_ChangeLCD(){
    }  
 }
 
-void SendSMSAlert(){
-
-  String v1ptr, v2ptr;
-
-  if( (millis() - LastNotificationSentMillis) > 900000){    //Every 15 minutes
-    //curl -X POST -H "Content-Type: application/json" -d '{"value1":"Bonefish-T1","value2":"5.80"}' https://maker.ifttt.com/trigger/DOx_Problem_TooLow/with/key/dOO4GGcvxO_pBa0QPwHN19 ;
-    Serial.println("Trigger Sent");
-    LastNotificationSentMillis = millis();    
-  }
-}
 void SensorHeartBeat() {
 
   if ((millis() - HeartBeatMillis) > 1000) {
     //GV_DOX,GV_TEMP,GV_SALIN
     if (CODE_FOR_DOx_DEVICE){
-       if ( (GV_DOX >= GV_DOx_TOOHIGHVALUE) || (GV_DOX <= GV_DOx_TOOLOWVALUE) ) { DoxLED.LED_Alert('H'); SendAlert_IFTTT("DOx_Problem_TooLow", GV_LCD_MAIN_TEXT[1], GV_SENSOR_DATA); }
+       if ( (GV_DOX >= GV_DOx_TOOHIGHVALUE) || (GV_DOX <= GV_DOx_TOOLOWVALUE) ) { DoxLED.LED_Alert('H'); SendAlert_IFTTT("Sensor_Value_Alert", GV_LCD_MAIN_TEXT[1], GV_SENSOR_DATA); }
     }
     if (CODE_FOR_TEMPSALINITY_DEVICE){
-       if ( (GV_TEMP >= GV_TEMP_TOOHIGHVALUE) || (GV_TEMP <= GV_TEMP_TOOLOWVALUE) ) DoxLED.LED_Alert('H');
-       if ( (GV_SALIN >= GV_SALIN_TOOHIGHVALUE) || (GV_SALIN <= GV_SALIN_TOOLOWVALUE) ) DoxLED.LED_Alert('H');      
+       if ( (GV_TEMP >= GV_TEMP_TOOHIGHVALUE) || (GV_TEMP <= GV_TEMP_TOOLOWVALUE) ) { DoxLED.LED_Alert('H'); SendAlert_IFTTT("Sensor_Value_Alert", GV_LCD_MAIN_TEXT[1], GV_SENSOR_DATA); }
+       if ( (GV_SALIN >= GV_SALIN_TOOHIGHVALUE) || (GV_SALIN <= GV_SALIN_TOOLOWVALUE) ) { DoxLED.LED_Alert('H'); SendAlert_IFTTT("Sensor_Value_Alert", GV_LCD_MAIN_TEXT[1], GV_SENSOR_DATA); }
     }
     if (HeartBeat != ' ') {
       HeartBeat = ' ';
