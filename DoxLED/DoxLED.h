@@ -12,7 +12,8 @@ class DoxLED{
 	void LED_FIND_LIGHT_FOR_DOx();
 	void LED_sensor_return_code_Fade(int code);
 	void LED_Alert(char TooWhat);
-	void LED_smoov(int L1, int L2, int color);
+	void LED_smoov(int L1, int L2, int color, float step);
+	void LED_SendCalToDOx();
 	void LED_Show_Group_Find_Color(int color);
 	
 	bool LED_GROUPFIND_ON;

@@ -79,14 +79,44 @@ void DoxLED::LED_Alert(char TooWhat){
   LED_Clear();  
 }
 
-void DoxLED::LED_smoov(int L1, int L2, int color){
-  for (int ww=0; ww<=255; ww=ww+(LED_NUMBER_OF_LEDS/7)){
+void DoxLED::LED_smoov(int L1, int L2, int color,  float step){
+  for (int ww=0; ww<=255; ww=ww + step){
     if (!LED_GROUPFIND_ON) ww=255+1;
     leds[L1]=CHSV(color,255,255-ww);
     leds[L2]=CHSV(color,255,ww);
     FastLED.show();
     //delay(5);
   }
+}
+
+void DoxLED::LED_SendCalToDOx(){
+  int color=32;
+  leds[2]=CRGB(255,255,255);
+  FastLED.show();
+  LED_smoov(8,9,color,9);
+  LED_smoov(8,7,color,9);
+  LED_smoov(9,10,color,9);
+  LED_smoov(7,6,color,9);
+  LED_smoov(10,11,color,9);
+  LED_smoov(6,5,color,9);
+  LED_smoov(11,0,color,9);
+  LED_smoov(5,4,color,9);
+  LED_smoov(0,1,color,9);
+  LED_smoov(4,3,color,9);
+  LED_Clear();
+  delay(200);
+  leds[2]=CRGB(255,255,255);
+  FastLED.show();
+  delay(200);
+  leds[2]=CRGB(0,0,0);
+  FastLED.show();
+  delay(200);
+  leds[2]=CRGB(255,255,255);
+  FastLED.show();
+  delay(200);
+  leds[2]=CRGB(0,0,0);
+  FastLED.show();
+  delay(1000);
 }
 
 void DoxLED::LED_Show_Group_Find_Color(int color){
@@ -97,7 +127,7 @@ void DoxLED::LED_Show_Group_Find_Color(int color){
       int L2=cii+1;
       if (L2 == LEDTopIndex+1) L2=1;
       if (!LED_GROUPFIND_ON) cii=LEDTopIndex+1;
-      LED_smoov(L1,L2,color);
+      LED_smoov(L1,L2,color,7.0);
     }
   }
 }
