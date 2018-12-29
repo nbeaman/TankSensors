@@ -9,14 +9,14 @@
 #include <DoxLED.h>               // My custom library that uses FastLED.h
 DoxLED DoxLED;
 
-//-----------[ DBUG ]---------
+//-----------[ DBUG ]-------------------------------
 const int DBUG = 0;               // Set this to 0 for no serial output for debugging, 1 for moderate debugging, 2 for FULL debugging to see serail output in the Arduino GUI.
-//----------------------------
+//--------------------------------------------------
 
 //============[ CODE IS FOR WHICH SENSOR ]==========
 #define CODE_FOR_DOx_DEVICE           false
 #define CODE_FOR_TEMPSALINITY_DEVICE  true
-// REMEMBER: Change LED_NUMBER_OF_LEDS in DoxLED.cpp
+// REMEMBER: Change LED_NUMBER_OF_LEDS in DoxLED.cpp  // 7 for NeoPixel Jewel, 12 for NeoPixel Ring.
 //-------------
 #if (CODE_FOR_DOx_DEVICE)
 #include <DoxConfig.h>
@@ -28,16 +28,14 @@ const int DBUG = 0;               // Set this to 0 for no serial output for debu
 //-----------[ SENSOR LIMITS ]----------------
 float   GV_DOx_TOOHIGHVALUE         = 10.00;
 float   GV_DOx_TOOLOWVALUE          = 6.00;
-float   GV_TEMP_TOOHIGHVALUE        = 75.00;
+float   GV_TEMP_TOOHIGHVALUE        = 81.00;
 float   GV_TEMP_TOOLOWVALUE         = 40.00;
 float   GV_SALIN_TOOHIGHVALUE       = 999.00;
 float   GV_SALIN_TOOLOWVALUE        = -1.00;
 String  GV_NOTIFY_ON                = "Y";
-
 //--------------------------------------------
 
-
-//----------[ FUNCTION SWITCH VARS ]------
+//-----------[ LOOP SWITCH VARS ]-------------
 bool  GV_WEB_REQUEST_IN_PROGRESS            = false;
 bool  GV_READ_REQUEST_IN_PROGRESS           = false;
 bool  GV_THIS_IS_A_SERIAL_COMMAND           = false;
@@ -46,36 +44,38 @@ int   GV_FIND                               = 0;
 bool  GV_GROUPFIND                          = false;
 int   GV_GROUPCOLOR;
 bool  GV_BOOTING_UP                         = true;
-//----------------------------------------
+bool  GV_TEMPSALIN_CALTEMP_REMOTE_DOx       = false;
+bool  GV_TEMPSALIN_CALSALIN_REMOTE_DOx      = false;
+char  GV_TEMPSALIN_ALTERNATE                = 'T';    // used for Temp & Salinity sensor.  Alters between 'T' and 'S'.  Device was running slow when both were read at the same time.
+//---------------------------------------------
 
 //BUTTON
-Button button1(2);                              // Connect button between pin 2 and GND
-int     GV_LCD_MAIN_TEXT_INDEX  = 0;            // Text to show in top left of LCD (DO sensor name, IP Address, Program version, FireBeatle version.  Depending on the button.
-String  GV_LCD_MAIN_TEXT[4];                    // Text to cycle through when button is pressed.
+Button button1(2);                                    // Connect button between pin 2 and GND
+int     GV_LCD_MAIN_TEXT_INDEX  = 0;                  // Index of array of text to show in top left of LCD
+String  GV_LCD_MAIN_TEXT[4];                          // Sensor name, Alert HIGH/LOW values, IP Address, MAC Address.  Depending on the button.
 //-----
  
 // LCD
-LiquidCrystal_I2C lcd(0x27, 16, 2);               // set the LCD address to 0x27 for a 16 chars and 2 line
+LiquidCrystal_I2C lcd(0x27, 16, 2);                   // set the LCD address to 0x27 for a 16 chars and 2 line
 const bool ClearLCD = true, NoClearLCD = false, PrintSerial = true, NoSerial = false;  // Used for LCD_DISPLAY
 
 //I2C
-
-String GV_SENSOR_DATA           = "";               // Holds latest reading from D.O. Circuit.
+String GV_SENSOR_DATA           = "";                 // Holds latest reading from D.O. Circuit.
 float  GV_DOX,GV_TEMP,GV_SALIN;
-String GV_SENSOR_RESPONSE       = "NONE";           // Holds latest response from D.O. Circuit.
+String GV_SENSOR_RESPONSE       = "NONE";             // Holds latest response from D.O. Circuit.
 String GV_WEB_RESPONSE_TEXT     = "";
 
-//---
+//Timing for LOOP switches
 unsigned long SensorAutoReadingMillis     = millis();   // Stores milliseconds since last D.O. reading.
 unsigned long HeartBeatMillis             = millis();
 unsigned long WebServerRestartMillis      = millis();
 unsigned long LastNotificationSentMillis  = millis(); 
-char HeartBeat                            = ' ';
+char          HeartBeat                   = ' ';
 //----------------------------------------
 
-//---------------[ PRE-SETUP]-------------
-AsyncWebServer server(80);              // Setup Web Server Port.
-const char* PARAM_MESSAGE = "command";     // HTTP_GET parameter to look for.
+//---------------[ WEB SERVER SETUP]------
+AsyncWebServer server(80);                // Setup Web Server Port.
+const char* PARAM_MESSAGE = "command";    // HTTP_GET parameter to look for.
 String MACaddress;
 //----------------------------------------
 
@@ -95,8 +95,9 @@ void SendAlert_IFTTT(String eventName, String val1, String val2){
 
     LastNotificationSentMillis = millis();
   }
-
 }
+
+
 
 //================================================================================================
 //===========================================[ SETUP ]============================================
@@ -129,7 +130,7 @@ void setup() {
   WiFi.macAddress(mac);
   MACaddress   = String(mac[5],HEX) + String(mac[4],HEX) + String(mac[3],HEX) + String(mac[2],HEX) + String(mac[1],HEX) + String(mac[0],HEX);
   GV_LCD_MAIN_TEXT[0] = MACaddress;
-  Serial.println(GV_LCD_MAIN_TEXT[2]);
+  Serial.println( GV_LCD_MAIN_TEXT[2] );
 
   GV_LCD_MAIN_TEXT[2]= "H" + String(GV_DOx_TOOHIGHVALUE) + " L" + String(GV_DOx_TOOLOWVALUE);
   
@@ -222,7 +223,7 @@ void setup() {
 //================================================================================================
 
 
-//-------------------------------[ Variables used in LOOP ]------------
+//Variables used in LOOP
 char computerdata[20];           //we make a 20 byte character array to hold incoming data from a pc/mac/other.
 byte received_from_computer = 0; //we need to know how many characters have been received.
 char incoming_data[20];                //we make a 20 byte character array to hold incoming data from the D.O. circuit.
@@ -237,6 +238,15 @@ char *ReadDOx = &R;
 //==========================================[ LOOP ]==============================================
 //================================================================================================
 void loop() {
+  if(GV_TEMPSALIN_CALTEMP_REMOTE_DOx){ 
+    TEMPSALIN_CalTemp_RemoteDOx( "10.0.0.35" );
+    GV_TEMPSALIN_CALTEMP_REMOTE_DOx = false;
+  }
+  
+  if(GV_TEMPSALIN_CALSALIN_REMOTE_DOx){ 
+    TEMPSALIN_CalSalin_RemoteDOx( "10.0.0.35" );
+    GV_TEMPSALIN_CALSALIN_REMOTE_DOx = false;
+  }
   
   if (GV_FIND){                                                         // GV_FIND is set to true if web page ipaddress/findon is called.  Nothing is supposed to function while this is happening.
     while( GV_FIND == 1 ){                                              // GV_FIND is set to false if web page ipaddress/findoff is called.
@@ -255,7 +265,6 @@ void loop() {
     DoxLED.LED_Clear();
   }
 
-  
   if (GV_QUERY_SENSOR_NAME_ON_NEXT_COMMAND){              // query DOx name if this is set to true, then display it on the LCD screen.  This is set to run on boot-up and when DOx name was changed. 
     if (CODE_FOR_DOx_DEVICE){
       SendCommandToSensorAndSetReturnGVVariables("name,?\0");
@@ -264,7 +273,7 @@ void loop() {
       SendCommandToSensorAndSetReturnGVVariables(String(config_SalinitySensorAddress) + ":name,?\0");
     }    
     
-    Serial.println(GV_SENSOR_DATA);
+    //Serial.println(GV_SENSOR_DATA);
     GV_SENSOR_DATA.remove(0,6);
     GV_LCD_MAIN_TEXT[1]=GV_SENSOR_DATA;
     GV_LCD_MAIN_TEXT_INDEX=1;
@@ -285,6 +294,7 @@ void loop() {
   }
   
   if (((millis() - SensorAutoReadingMillis) > 2000) && !GV_WEB_REQUEST_IN_PROGRESS){
+  
     GV_READ_REQUEST_IN_PROGRESS=true;
     if (CODE_FOR_DOx_DEVICE){
       SendCommandToSensorAndSetReturnGVVariables(ReadDOx);
@@ -292,10 +302,15 @@ void loop() {
       LCD_DISPLAY("  ", GV_SENSOR_DATA.length(), 1, NoClearLCD, NoSerial);
     }
     if (CODE_FOR_TEMPSALINITY_DEVICE){
-      SendCommandToSensorAndSetReturnGVVariables(String(config_TemperatureSensorAddress) + ":r");
-      LCD_DISPLAY(GV_SENSOR_DATA + "   ", 0, 1, NoClearLCD, PrintSerial);
-      SendCommandToSensorAndSetReturnGVVariables(String(config_SalinitySensorAddress) + ":r");
-      LCD_DISPLAY(GV_SENSOR_DATA + " ", 13-GV_SENSOR_DATA.length(), 1, NoClearLCD, PrintSerial);
+      if (GV_TEMPSALIN_ALTERNATE == 'T') {                                             // b/c device was running slow due to two long reads at the same time.  Alertnate between reads.
+        SendCommandToSensorAndSetReturnGVVariables(String(config_TemperatureSensorAddress) + ":r");
+        LCD_DISPLAY(GV_SENSOR_DATA + "   ", 0, 1, NoClearLCD, PrintSerial);
+        GV_TEMPSALIN_ALTERNATE = 'S';                                                   // next reading will be Salinity.
+      } else {
+        SendCommandToSensorAndSetReturnGVVariables(String(config_SalinitySensorAddress) + ":r");
+        LCD_DISPLAY(GV_SENSOR_DATA + " ", 13-GV_SENSOR_DATA.length(), 1, NoClearLCD, PrintSerial);
+        GV_TEMPSALIN_ALTERNATE = 'T';                                                  // next reading will be Temp.
+      }
     }
     SensorAutoReadingMillis = millis();
     GV_READ_REQUEST_IN_PROGRESS=false;
@@ -310,7 +325,7 @@ void loop() {
   SensorHeartBeat();
 
   BUTTON_WasItPressed_ChangeLCD();
-
+  
   GV_BOOTING_UP=false;
   
 }
@@ -318,12 +333,34 @@ void loop() {
 //=========================================[ LOOP: END ]==========================================
 //================================================================================================
 
-
 //Functions:
+bool TEMPSALIN_CalTemp_RemoteDOx( String SensorIPToCalibrate ){
+  HTTPClient http;
+  float Celsius = ( GV_TEMP -32 ) * (0.555555);
+  Serial.print("Celsius: ");Serial.println(Celsius);
+  String URLtext = "http://" + SensorIPToCalibrate + "/send?command=T," + String(Celsius);
+  http.begin(URLtext);
+  Serial.println(URLtext);
+  int httpResponseCode = http.GET();
+  Serial.println(httpResponseCode);
+  DoxLED.LED_SendCalToDOx();
+  delay(2000);
+}
+
+bool TEMPSALIN_CalSalin_RemoteDOx( String SensorIPToCalibrate ){
+  HTTPClient http;  
+  String URLtext = "http://" + SensorIPToCalibrate + "/send?command=S," + String(GV_SALIN);
+  http.begin(URLtext);
+  Serial.println(URLtext);
+  int httpResponseCode = http.GET();
+  Serial.println(httpResponseCode);
+  DoxLED.LED_SendCalToDOx();
+  delay(2000);  
+}
 
 void SetVariableFromWebRequest(String SetVarCommand){
   SetVarCommand.toLowerCase();
-
+  Serial.println(SetVarCommand);
   int colonCharIndex = SetVarCommand.indexOf(':');
   String tempStr = SetVarCommand.substring(0,colonCharIndex);
   tempStr.toLowerCase();
@@ -355,6 +392,16 @@ void SetVariableFromWebRequest(String SetVarCommand){
     String tempVal = SetVarCommand.substring(colonCharIndex+1,SetVarCommand.length());
     if(tempVal == "y") GV_NOTIFY_ON="Y";
     else GV_NOTIFY_ON="N";
+  } 
+  if(tempStr == "doxcaltemp"){
+    Serial.println("DOxCal");
+    String tempVal = SetVarCommand.substring(colonCharIndex+1,SetVarCommand.length()); 
+    GV_TEMPSALIN_CALTEMP_REMOTE_DOx = true;
+  }
+  if(tempStr == "doxcalsalin"){
+    Serial.println("DOxCal");
+    String tempVal = SetVarCommand.substring(colonCharIndex+1,SetVarCommand.length()); 
+    GV_TEMPSALIN_CALSALIN_REMOTE_DOx = true;
   }  
 }
 
@@ -419,7 +466,7 @@ void SensorHeartBeat() {
       DoxLED.LED_Center_Blue(false);
     }
     else {
-      if (CODE_FOR_DOx_DEVICE) HeartBeat = 'D';
+      if (CODE_FOR_DOx_DEVICE)          HeartBeat = 'D';
       if (CODE_FOR_TEMPSALINITY_DEVICE) HeartBeat = 'M';
       DoxLED.LED_Center_Blue(true);
     }
@@ -448,8 +495,8 @@ void SendCommandToSensorAndSetReturnGVVariables(String command) {
       String tempStr = command.substring(0,colonCharIndex);
       channel = tempStr.toInt();
       SensorCommand = command.substring(colonCharIndex+1,command.length());
-      Serial.println(channel);
-      Serial.println(SensorCommand);
+      //Serial.println(channel);
+     // Serial.println(SensorCommand);
   }
 
   SensorCommand[0] = tolower(SensorCommand[0]);
@@ -466,7 +513,7 @@ void SendCommandToSensorAndSetReturnGVVariables(String command) {
     else time_ = 300;                                                                   //if not 300ms will do
   }
    if (CODE_FOR_TEMPSALINITY_DEVICE){
-      time_ = 1000;
+      time_ = 600;
   }                                            
     
   //if (strcmp(computerdata, "sleep") != 0) {  //if the command that has been sent is NOT the sleep command, wait the correct amount of time and request data.
@@ -515,13 +562,13 @@ void SendCommandToSensorAndSetReturnGVVariables(String command) {
   GV_SENSOR_DATA = incoming_data;
   
   // set GV_DOX,GV_TEMP,GV_SALIN
-  if(CODE_FOR_DOx_DEVICE)                           GV_DOX    = GV_SENSOR_DATA.toFloat();
-  if(CODE_FOR_TEMPSALINITY_DEVICE && channel==config_SalinitySensorAddress)  GV_SALIN  = GV_SENSOR_DATA.toFloat();
-  if(CODE_FOR_TEMPSALINITY_DEVICE && channel==config_TemperatureSensorAddress)  GV_TEMP   = GV_SENSOR_DATA.toFloat();
+  if(CODE_FOR_DOx_DEVICE) GV_DOX = GV_SENSOR_DATA.toFloat();
+  if(CODE_FOR_TEMPSALINITY_DEVICE && channel==config_SalinitySensorAddress) GV_SALIN  = GV_SENSOR_DATA.toFloat();
+  if(CODE_FOR_TEMPSALINITY_DEVICE && channel==config_TemperatureSensorAddress) GV_TEMP = GV_SENSOR_DATA.toFloat();
 
   GV_WEB_RESPONSE_TEXT=GV_SENSOR_DATA + "," + GV_SENSOR_RESPONSE;
 
-  if (Ccommand[0] == 'n' && Ccommand[5] != '?'){              // someone sent the name,TheName to the DO cercuit (not just querying the name,?).
+  if (Ccommand[0] == 'n' && Ccommand[5] != '?'){                        // someone sent the name,TheName to the DO cercuit (not just querying the name,?).
     GV_QUERY_SENSOR_NAME_ON_NEXT_COMMAND = true;    
   }
   
@@ -530,6 +577,6 @@ void SendCommandToSensorAndSetReturnGVVariables(String command) {
       Serial.println("GV_SENSOR_RESPONSE:" + GV_SENSOR_RESPONSE);
       Serial.println("GV_WEB_RESPONSE_TEXT" + GV_WEB_RESPONSE_TEXT);
   }
-  if (GV_THIS_IS_A_SERIAL_COMMAND) GV_THIS_IS_A_SERIAL_COMMAND=false;                                     //set gloabal indicator that command from the Serial Monitor is done.
+  if (GV_THIS_IS_A_SERIAL_COMMAND) GV_THIS_IS_A_SERIAL_COMMAND=false;   //set gloabal indicator that command from the Serial Monitor is done.
 
 }
