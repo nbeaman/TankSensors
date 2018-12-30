@@ -81,7 +81,6 @@ void DoxLED::LED_Alert(char TooWhat){
 
 void DoxLED::LED_smoov(int L1, int L2, int color,  float step){
   for (int ww=0; ww<=255; ww=ww + step){
-    if (!LED_GROUPFIND_ON) ww=255+1;
     leds[L1]=CHSV(color,255,255-ww);
     leds[L2]=CHSV(color,255,ww);
     FastLED.show();
