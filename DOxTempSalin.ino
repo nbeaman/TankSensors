@@ -238,16 +238,19 @@ char *ReadDOx = &R;
 //==========================================[ LOOP ]==============================================
 //================================================================================================
 void loop() {
-  if(GV_TEMPSALIN_CALTEMP_REMOTE_DOx){ 
-    TEMPSALIN_CalTemp_RemoteDOx( "10.0.0.35" );
-    GV_TEMPSALIN_CALTEMP_REMOTE_DOx = false;
-  }
   
-  if(GV_TEMPSALIN_CALSALIN_REMOTE_DOx){ 
-    TEMPSALIN_CalSalin_RemoteDOx( "10.0.0.35" );
-    GV_TEMPSALIN_CALSALIN_REMOTE_DOx = false;
+  if( CODE_FOR_TEMPSALINITY_DEVICE ){
+      if(GV_TEMPSALIN_CALTEMP_REMOTE_DOx){ 
+        TEMPSALIN_CalTemp_RemoteDOx( "10.0.0.35" );
+        GV_TEMPSALIN_CALTEMP_REMOTE_DOx = false;
+      }
+      
+      if(GV_TEMPSALIN_CALSALIN_REMOTE_DOx){ 
+        TEMPSALIN_CalSalin_RemoteDOx( "10.0.0.35" );
+        GV_TEMPSALIN_CALSALIN_REMOTE_DOx = false;
+      }    
   }
-  
+
   if (GV_FIND){                                                         // GV_FIND is set to true if web page ipaddress/findon is called.  Nothing is supposed to function while this is happening.
     while( GV_FIND == 1 ){                                              // GV_FIND is set to false if web page ipaddress/findoff is called.
       if (CODE_FOR_DOx_DEVICE){
