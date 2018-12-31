@@ -3,7 +3,7 @@
 #include <FastLED.h> 
 
 //===============================
-const int LED_NUMBER_OF_LEDS = 12;
+const int LED_NUMBER_OF_LEDS = 7;
 //===============================
  
 const int LED_PIN = 15;
