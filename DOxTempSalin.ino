@@ -1,7 +1,7 @@
 #include <WiFi.h>                 //WiFi
 #include <AsyncTCP.h>             //WebServer
 #include <ESPAsyncWebServer.h>    //WebServer
-#include <Wire.h>                 //enable I2C.
+#include <Wire.h>                 //enable I2C .
 #include <LiquidCrystal_I2C.h>    //LCD
 #include <Button.h>               //Button
 #include <HTTPClient.h>
@@ -14,8 +14,8 @@ const int DBUG = 0;               // Set this to 0 for no serial output for debu
 //--------------------------------------------------
 
 //============[ CODE IS FOR WHICH SENSOR ]==========
-#define CODE_FOR_DOx_DEVICE           false
-#define CODE_FOR_TEMPSALINITY_DEVICE  true
+#define CODE_FOR_DOx_DEVICE           true
+#define CODE_FOR_TEMPSALINITY_DEVICE  false
 // REMEMBER: Change LED_NUMBER_OF_LEDS in DoxLED.cpp  // 7 for NeoPixel Jewel, 12 for NeoPixel Ring.
 //-------------
 #if (CODE_FOR_DOx_DEVICE)
@@ -77,27 +77,8 @@ char          HeartBeat                   = ' ';
 AsyncWebServer server(80);                // Setup Web Server Port.
 const char* PARAM_MESSAGE = "command";    // HTTP_GET parameter to look for.
 String MACaddress;
+String TEMPSALIN_REMOTEDOX_IP;
 //----------------------------------------
-
-void SendAlert_IFTTT(String eventName, String val1, String val2){
-  if((millis() - LastNotificationSentMillis) > 900000){
-    HTTPClient http;
-    Serial.println("Notification Sent");
-    http.begin("https://maker.ifttt.com/trigger/" + eventName + "/with/key/dOO4GGcvxO_pBa0QPwHN19");
-    //http.addHeader("Content-Type", "text/plain");             //Specify content-type header
-    http.addHeader("Content-Type", "application/json");
-
-    String JSONtext = "{ \"value1\" : \"" + val1 + "\", \"value2\" : \"" + val2 + "\" }";
-    Serial.println(JSONtext);
-
-    int httpResponseCode = http.POST(JSONtext);   //Send the actual POST request
-    // * could check for response - on my todo list * // 
-
-    LastNotificationSentMillis = millis();
-  }
-}
-
-
 
 //================================================================================================
 //===========================================[ SETUP ]============================================
@@ -113,6 +94,7 @@ void setup() {
   lcd.begin();                  //initialize the lcd
 
   //-----------------------------[ WEB SERVER ]-----------------------------------------------
+
   WiFi.begin(config_WIFI_SSID, config_WIFI_PASSWORD);
 
   while (WiFi.status() != WL_CONNECTED) {
@@ -157,7 +139,7 @@ void setup() {
     }
     while (GV_READ_REQUEST_IN_PROGRESS){             // wait until the auto DOx read ends so we can have a turn sending this request sent from the micro PC's web page to the DOx sensor
       w++;
-      if (w < 2000) break;
+      if (w < 1000) break;
       }
       
     SendCommandToSensorAndSetReturnGVVariables(message);
@@ -239,16 +221,14 @@ char *ReadDOx = &R;
 //================================================================================================
 void loop() {
   
-  if( CODE_FOR_TEMPSALINITY_DEVICE ){
-      if(GV_TEMPSALIN_CALTEMP_REMOTE_DOx){ 
-        TEMPSALIN_CalTemp_RemoteDOx( "10.0.0.35" );
+  if( CODE_FOR_TEMPSALINITY_DEVICE && GV_TEMPSALIN_CALTEMP_REMOTE_DOx ){
+        TEMPSALIN_CalTemp_RemoteDOx( TEMPSALIN_REMOTEDOX_IP );
         GV_TEMPSALIN_CALTEMP_REMOTE_DOx = false;
-      }
+  }
       
-      if(GV_TEMPSALIN_CALSALIN_REMOTE_DOx){ 
-        TEMPSALIN_CalSalin_RemoteDOx( "10.0.0.35" );
-        GV_TEMPSALIN_CALSALIN_REMOTE_DOx = false;
-      }    
+  if( CODE_FOR_TEMPSALINITY_DEVICE && GV_TEMPSALIN_CALTEMP_REMOTE_DOx ){ 
+        TEMPSALIN_CalSalin_RemoteDOx( TEMPSALIN_REMOTEDOX_IP );
+        GV_TEMPSALIN_CALSALIN_REMOTE_DOx = false;   
   }
 
   if (GV_FIND){                                                         // GV_FIND is set to true if web page ipaddress/findon is called.  Nothing is supposed to function while this is happening.
@@ -344,9 +324,9 @@ bool TEMPSALIN_CalTemp_RemoteDOx( String SensorIPToCalibrate ){
   String URLtext = "http://" + SensorIPToCalibrate + "/send?command=T," + String(Celsius);
   http.begin(URLtext);
   Serial.println(URLtext);
+  DoxLED.LED_SendCalToDOx();
   int httpResponseCode = http.GET();
   Serial.println(httpResponseCode);
-  DoxLED.LED_SendCalToDOx();
   delay(2000);
 }
 
@@ -355,10 +335,37 @@ bool TEMPSALIN_CalSalin_RemoteDOx( String SensorIPToCalibrate ){
   String URLtext = "http://" + SensorIPToCalibrate + "/send?command=S," + String(GV_SALIN);
   http.begin(URLtext);
   Serial.println(URLtext);
+  DoxLED.LED_SendCalToDOx();  
   int httpResponseCode = http.GET();
   Serial.println(httpResponseCode);
-  DoxLED.LED_SendCalToDOx();
   delay(2000);  
+}
+
+void SendAlert_IFTTT(String eventName, String val1, String val2){
+  // A "bad" reading can be a sensor reading out-of-range or just blank or bad data.  We want a second "bad" reading to occure within 15 minutes of the first before sending an alert
+  // to the user(s).  On first "bad" reading, check to see if/when the last alert was sent.  If it's over 30 minutes, set LastNotificationSentMillis to "now". 
+
+  if((millis() - LastNotificationSentMillis) > 1800000){          // greater than 30 minutes means the sensor has just started its alert mode (sensor reading out-of-rang).  We want to
+                                                                  // wait 15 minutes before sending the FIRST alert, so set LastNotificationSentMillis to "now".  So if it finds another
+                                                                  // out of rang reading within 15 minutes, this function will continue on to its "else" code below.
+    LastNotificationSentMillis=millis();
+  } else {
+    if((millis() - LastNotificationSentMillis) > 900000){         // 15 minutes
+      HTTPClient http;
+      Serial.println("Notification Sent");
+      http.begin("https://maker.ifttt.com/trigger/" + eventName + "/with/key/dOO4GGcvxO_pBa0QPwHN19");
+      //http.addHeader("Content-Type", "text/plain");             //Specify content-type header
+      http.addHeader("Content-Type", "application/json");
+  
+      String JSONtext = "{ \"value1\" : \"" + val1 + "\", \"value2\" : \"" + val2 + "\" }";
+      Serial.println(JSONtext);
+  
+      int httpResponseCode = http.POST(JSONtext);   //Send the actual POST request
+      // * could check for response - on my todo list * // 
+  
+      LastNotificationSentMillis = millis();
+    }    
+  }
 }
 
 void SetVariableFromWebRequest(String SetVarCommand){
@@ -398,12 +405,14 @@ void SetVariableFromWebRequest(String SetVarCommand){
   } 
   if(tempStr == "doxcaltemp"){
     Serial.println("DOxCal");
-    String tempVal = SetVarCommand.substring(colonCharIndex+1,SetVarCommand.length()); 
+    String tempVal = SetVarCommand.substring(colonCharIndex+1,SetVarCommand.length());
+    TEMPSALIN_REMOTEDOX_IP = tempVal; 
     GV_TEMPSALIN_CALTEMP_REMOTE_DOx = true;
   }
   if(tempStr == "doxcalsalin"){
     Serial.println("DOxCal");
     String tempVal = SetVarCommand.substring(colonCharIndex+1,SetVarCommand.length()); 
+    TEMPSALIN_REMOTEDOX_IP = tempVal;
     GV_TEMPSALIN_CALSALIN_REMOTE_DOx = true;
   }  
 }
@@ -458,11 +467,11 @@ void SensorHeartBeat() {
   if ((millis() - HeartBeatMillis) > 1000) {
     //GV_DOX,GV_TEMP,GV_SALIN
     if (CODE_FOR_DOx_DEVICE){
-       if ( (GV_DOX >= GV_DOx_TOOHIGHVALUE) || (GV_DOX <= GV_DOx_TOOLOWVALUE) ) { DoxLED.LED_Alert('H'); SendAlert_IFTTT("Sensor_Value_Alert", GV_LCD_MAIN_TEXT[1], GV_SENSOR_DATA); }
+       if ( (GV_DOX >= GV_DOx_TOOHIGHVALUE) || (GV_DOX <= GV_DOx_TOOLOWVALUE) ) { DoxLED.LED_Alert('H'); SendAlert_IFTTT("Sensor_Value_Alert", GV_LCD_MAIN_TEXT[1], String(GV_DOX)); }
     }
     if (CODE_FOR_TEMPSALINITY_DEVICE){
-       if ( (GV_TEMP >= GV_TEMP_TOOHIGHVALUE) || (GV_TEMP <= GV_TEMP_TOOLOWVALUE) ) { DoxLED.LED_Alert('H'); SendAlert_IFTTT("Sensor_Value_Alert", GV_LCD_MAIN_TEXT[1], GV_SENSOR_DATA); }
-       if ( (GV_SALIN >= GV_SALIN_TOOHIGHVALUE) || (GV_SALIN <= GV_SALIN_TOOLOWVALUE) ) { DoxLED.LED_Alert('H'); SendAlert_IFTTT("Sensor_Value_Alert", GV_LCD_MAIN_TEXT[1], GV_SENSOR_DATA); }
+       if ( (GV_TEMP >= GV_TEMP_TOOHIGHVALUE) || (GV_TEMP <= GV_TEMP_TOOLOWVALUE) ) { DoxLED.LED_Alert('H'); SendAlert_IFTTT("Sensor_Value_Alert", GV_LCD_MAIN_TEXT[1], String(GV_TEMP)); }
+       if ( (GV_SALIN >= GV_SALIN_TOOHIGHVALUE) || (GV_SALIN <= GV_SALIN_TOOLOWVALUE) ) { DoxLED.LED_Alert('H'); SendAlert_IFTTT("Sensor_Value_Alert", GV_LCD_MAIN_TEXT[1], String(GV_SALIN)); }
     }
     if (HeartBeat != ' ') {
       HeartBeat = ' ';
@@ -484,6 +493,8 @@ void SensorHeartBeat() {
 }
 
 void SendCommandToSensorAndSetReturnGVVariables(String command) {
+
+  
   char    Ccommand[20];
   byte    code = 0;                   //used to hold the I2C response code.
   String  SensorCommand;
