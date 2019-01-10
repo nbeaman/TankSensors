@@ -26,8 +26,8 @@ const int DBUG = 0;               // Set this to 0 for no serial output for debu
 //==================================================
 
 //-----------[ SENSOR LIMITS ]----------------
-float   GV_DOx_TOOHIGHVALUE         = 10.00;
-float   GV_DOx_TOOLOWVALUE          = 6.00;
+float   GV_DOx_TOOHIGHVALUE         = 19.00;
+float   GV_DOx_TOOLOWVALUE          = 1.00;
 float   GV_TEMP_TOOHIGHVALUE        = 81.00;
 float   GV_TEMP_TOOLOWVALUE         = 40.00;
 float   GV_SALIN_TOOHIGHVALUE       = 999.00;
@@ -368,7 +368,21 @@ void SendAlert_IFTTT(String eventName, String val1, String val2){
   }
 }
 
+String StringTo14chars(String S){
+  int l=S.length();
+  String TempStr;
+  if(l > 14) S.substring(0,14);
+  if(l < 14){
+    for (int si=l; si<=14; si++){
+      TempStr.concat(" ");
+    }
+    S.concat(TempStr);
+  }
+  return S;
+}
+
 void SetVariableFromWebRequest(String SetVarCommand){
+  
   SetVarCommand.toLowerCase();
   Serial.println(SetVarCommand);
   int colonCharIndex = SetVarCommand.indexOf(':');
@@ -377,10 +391,14 @@ void SetVariableFromWebRequest(String SetVarCommand){
   if(tempStr == "doxmax"){
     String tempVal = SetVarCommand.substring(colonCharIndex+1,SetVarCommand.length()); 
     GV_DOx_TOOHIGHVALUE = tempVal.toFloat();
+    GV_LCD_MAIN_TEXT[2]= "H" + String(GV_DOx_TOOHIGHVALUE) + " L" + String(GV_DOx_TOOLOWVALUE);
+    if(GV_LCD_MAIN_TEXT_INDEX == 2) LCD_DISPLAY(StringTo14chars(GV_LCD_MAIN_TEXT[GV_LCD_MAIN_TEXT_INDEX]),0,0,NoClearLCD,PrintSerial);
   }   
   if(tempStr == "doxmin"){
     String tempVal = SetVarCommand.substring(colonCharIndex+1,SetVarCommand.length()); 
     GV_DOx_TOOLOWVALUE = tempVal.toFloat();
+    GV_LCD_MAIN_TEXT[2]= "H" + String(GV_DOx_TOOHIGHVALUE) + " L" + String(GV_DOx_TOOLOWVALUE);
+    if(GV_LCD_MAIN_TEXT_INDEX == 2) LCD_DISPLAY(StringTo14chars(GV_LCD_MAIN_TEXT[GV_LCD_MAIN_TEXT_INDEX]),0,0,NoClearLCD,PrintSerial);
   }
   if(tempStr == "tempmax"){
     String tempVal = SetVarCommand.substring(colonCharIndex+1,SetVarCommand.length()); 
@@ -458,7 +476,7 @@ void BUTTON_WasItPressed_ChangeLCD(){
               break;
     }
     if(DBUG) Serial.println(LCDTEXT);
-    LCD_DISPLAY(LCDTEXT, 0, 0, ClearLCD, PrintSerial);                            
+    LCD_DISPLAY(StringTo14chars(LCDTEXT), 0, 0, NoClearLCD, PrintSerial);                            
    }  
 }
 
