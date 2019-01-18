@@ -106,20 +106,26 @@ void setup() {
   
   IPAddress IP=WiFi.localIP();
   GV_LCD_MAIN_TEXT[3]=String(IP[0]) + '.' + String(IP[1]) + '.' + String(IP[2]) + '.' + String(IP[3]);
-  Serial.println(GV_LCD_MAIN_TEXT[0]);
+  Serial.println(GV_LCD_MAIN_TEXT[3]);
   
   byte mac[6];
   WiFi.macAddress(mac);
   MACaddress   = String(mac[5],HEX) + String(mac[4],HEX) + String(mac[3],HEX) + String(mac[2],HEX) + String(mac[1],HEX) + String(mac[0],HEX);
   GV_LCD_MAIN_TEXT[0] = MACaddress;
-  Serial.println( GV_LCD_MAIN_TEXT[2] );
+  Serial.println( GV_LCD_MAIN_TEXT[0] );
 
   GV_LCD_MAIN_TEXT[2]= "H" + String(GV_DOx_TOOHIGHVALUE) + " L" + String(GV_DOx_TOOLOWVALUE);
   
   //---------------------------------[ Sensor Web Page ]-----------------------------------------
   //-----------------[ / ]----------------------
   server.on("/", HTTP_GET, [](AsyncWebServerRequest * request) {
-    request->send(200, "text/plain", "DoxMAX: " + String(GV_DOx_TOOHIGHVALUE) + "<BR>DoxMIN: " + String(GV_DOx_TOOLOWVALUE) + "<br>" + MACaddress);
+    String WebHTML;
+    if(CODE_FOR_DOx_DEVICE){ 
+      WebHTML = "<font size=\"3\">" + GV_LCD_MAIN_TEXT[1] + "\nDisolved Oxygen Sensor" + "\nDoxMAX: " + String(GV_DOx_TOOHIGHVALUE) + "\nDoxMIN: " + String(GV_DOx_TOOLOWVALUE) + "\nMAC: " + MACaddress + "\nUp Time: " + String(millis() + "<\/font>"); 
+    } else {
+      WebHTML = "<font size=3>" + GV_LCD_MAIN_TEXT[1] + "\nDisolved Oxygen Sensor" + "\nDoxMAX: " + String(GV_DOx_TOOHIGHVALUE) + "\nDoxMIN: " + String(GV_DOx_TOOLOWVALUE) + "\nMAC: " + MACaddress + "\nUp Time: " + String(millis() + "<\/font>");      
+    }
+    request->send(200, "text/plain", WebHTML);
     });
       
   //-----------------[ /read ]------------------
@@ -226,7 +232,7 @@ void loop() {
         GV_TEMPSALIN_CALTEMP_REMOTE_DOx = false;
   }
       
-  if( CODE_FOR_TEMPSALINITY_DEVICE && GV_TEMPSALIN_CALTEMP_REMOTE_DOx ){ 
+  if( CODE_FOR_TEMPSALINITY_DEVICE && GV_TEMPSALIN_CALSALIN_REMOTE_DOx ){ 
         TEMPSALIN_CalSalin_RemoteDOx( TEMPSALIN_REMOTEDOX_IP );
         GV_TEMPSALIN_CALSALIN_REMOTE_DOx = false;   
   }
