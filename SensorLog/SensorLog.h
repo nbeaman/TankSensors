@@ -16,7 +16,7 @@ struct SensorDataLog{
 struct SensorTextLog{
 	unsigned long 	when[450];
 	char 			type[450];
-	char * 			Txt[450][15];	
+	char  			Txt[450][15];	
 };
 
 	int 	sCurrentIndex;
@@ -31,7 +31,7 @@ struct SensorTextLog{
 	SensorTextLog TLOG;
 
     void 	slog(unsigned int lwhen, char ltype, float lval);
-	void 	stlog(unsigned int lwhen, char ltype, char * Txt[15]);
+	void 	stlog(unsigned int lwhen, char ltype, char Txt[15]);
 	float 	GetVal(int i);
 	void 	sClear();
 	void 	stClear();
