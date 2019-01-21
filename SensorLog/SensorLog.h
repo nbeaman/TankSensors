@@ -1,6 +1,8 @@
 #ifndef SensorLog_H
 #define SensorLog_H
-  
+
+#include <Arduino.h>
+
 class SensorLog{
   
   public:
@@ -8,31 +10,38 @@ class SensorLog{
 	~SensorLog(); 
 
 struct SensorDataLog{
-	unsigned long 	when[450];
+	char		 	when[450][9];
 	char 			type[450];
-	float 			val[450];	
+	float 			val[450];		
 };
 
 struct SensorTextLog{
-	unsigned long 	when[450];
+	char		 	when[450][9];
 	char 			type[450];
-	char  			Txt[450][15];	
+	char 			Txt[450][15];		
 };
-
+	String		DBUGtext;
+	String		LogWebServerIP;	
+	
 	int 	sCurrentIndex;
 	int 	sMAX_LOG_INDEX;
 	bool 	sTIME_TO_SEND_AND_CLEAR=false;	
-
+	String	sTextFullLog;
+	
 	int 	stCurrentIndex;
 	int 	stMAX_LOG_INDEX;
 	bool 	stTIME_TO_SEND_AND_CLEAR=false;
-
+	String	stTextFullLog;
+	
 	SensorDataLog SLOG;
 	SensorTextLog TLOG;
 
-    void 	slog(unsigned int lwhen, char ltype, float lval);
-	void 	stlog(unsigned int lwhen, char ltype, char Txt[15]);
+    void 	slog(char type, float val);
+	void 	stlog(char type, String Txt);
 	float 	GetVal(int i);
+	void 	POSTtextFullLog(String IP, char sORst);
+	int 	TimeZone(int TimeOffset);
+	void 	sSendAndClearLogs();	
 	void 	sClear();
 	void 	stClear();
 
