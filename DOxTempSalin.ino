@@ -9,6 +9,9 @@
 #include <DoxLED.h>               // My custom library that uses FastLED.h
 DoxLED DoxLED;
 
+#include "SensorLog.h"
+SensorLog SENSORLOG;
+
 //-----------[ DBUG ]-------------------------------
 const int DBUG = 0;               // Set this to 0 for no serial output for debugging, 1 for moderate debugging, 2 for FULL debugging to see serail output in the Arduino GUI.
 //--------------------------------------------------
@@ -115,6 +118,10 @@ void setup() {
   Serial.println( GV_LCD_MAIN_TEXT[0] );
 
   GV_LCD_MAIN_TEXT[2]= "H" + String(GV_DOx_TOOHIGHVALUE) + " L" + String(GV_DOx_TOOLOWVALUE);
+
+    // SensorLog
+  SENSORLOG.TimeZone(-18000);
+  SENSORLOG.LogWebServerIP = "10.0.0.28";
   
   //---------------------------------[ Sensor Web Page ]-----------------------------------------
   //-----------------[ / ]----------------------
@@ -267,6 +274,7 @@ void loop() {
     GV_LCD_MAIN_TEXT[1]=GV_SENSOR_DATA;
     GV_LCD_MAIN_TEXT_INDEX=1;
     LCD_DISPLAY(GV_LCD_MAIN_TEXT[GV_LCD_MAIN_TEXT_INDEX],0,0,ClearLCD,PrintSerial);
+    SENSORLOG.DeviceName = GV_LCD_MAIN_TEXT[1];
     GV_QUERY_SENSOR_NAME_ON_NEXT_COMMAND = false;
   }
 
@@ -289,6 +297,8 @@ void loop() {
       SendCommandToSensorAndSetReturnGVVariables(ReadDOx);
       LCD_DISPLAY(GV_SENSOR_DATA, 0, 1, NoClearLCD, PrintSerial);
       LCD_DISPLAY("  ", GV_SENSOR_DATA.length(), 1, NoClearLCD, NoSerial);
+      SENSORLOG.slog('D',GV_SENSOR_DATA.toFloat());
+      Serial.print("sCurrentIndex: ");Serial.println(SENSORLOG.sCurrentIndex);
     }
     if (CODE_FOR_TEMPSALINITY_DEVICE){
       if (GV_TEMPSALIN_ALTERNATE == 'T') {                                             // b/c device was running slow due to two long reads at the same time.  Alertnate between reads.
