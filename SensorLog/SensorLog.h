@@ -22,6 +22,7 @@ struct SensorTextLog{
 };
 	String		DBUGtext;
 	String		LogWebServerIP;	
+	String		DeviceName;
 	
 	int 	sCurrentIndex;
 	int 	sMAX_LOG_INDEX;

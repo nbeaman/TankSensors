@@ -17,6 +17,7 @@ String timeStamp;
 
 String		DBUGtext;
 String		LogWebServerIP;
+String		DeviceName = "NotAssigned";
 
 int 		sCurrentIndex=0;
 int 		sMAX_LOG_INDEX=3;
@@ -81,19 +82,15 @@ void SensorLog::POSTtextFullLog(String IP, char sORst){
 
 void SensorLog::sSendAndClearLogs(){
 	int i,si;
-	String TempString;
-	for(i=0; i <=sCurrentIndex-1; i++){
-		TempString="";
-		//for(si=0; si<9; si++){
-			//TempString[si]=SLOG.when[i][si];
-		//}
 
-		//sTextFullLog= sTextFullLog + TempString;
+	for(i=0; i <=sCurrentIndex-1; i++){
+		sTextFullLog="";
+
 		sTextFullLog= sTextFullLog + String(SLOG.when[i]) + ",";
 		sTextFullLog= sTextFullLog + String(SLOG.type[i]) + ",";
 		sTextFullLog= sTextFullLog + String(SLOG.val[i]) + ",";
 	}
-	POSTtextFullLog("http://" + LogWebServerIP + "/TextFullLog.php?logdata=" + sTextFullLog,'s');
+	POSTtextFullLog("http://" + LogWebServerIP + "/TextFullLog.php?devicename=" + DeviceName + "&logdata=" + sTextFullLog,'s');
 	sCurrentIndex=0;
 	
 }
