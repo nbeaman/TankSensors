@@ -9,8 +9,9 @@
 #include <DoxLED.h>               // My custom library that uses FastLED.h
 DoxLED DoxLED;
 
-#include "SensorLog.h"
+#include <SensorLog.h>
 SensorLog SENSORLOG;
+
 
 //-----------[ DBUG ]-------------------------------
 const int DBUG = 0;               // Set this to 0 for no serial output for debugging, 1 for moderate debugging, 2 for FULL debugging to see serail output in the Arduino GUI.
@@ -119,20 +120,13 @@ void setup() {
 
   GV_LCD_MAIN_TEXT[2]= "H" + String(GV_DOx_TOOHIGHVALUE) + " L" + String(GV_DOx_TOOLOWVALUE);
 
-    // SensorLog
-  SENSORLOG.TimeZone(-18000);
-  SENSORLOG.LogWebServerIP = "10.0.0.28";
+  SENSORLOG.LogWebServerIP = config_SensorLogPHPwebserver;
+  SENSORLOG.SAVELOGSTOWEBFILE = true;
   
   //---------------------------------[ Sensor Web Page ]-----------------------------------------
   //-----------------[ / ]----------------------
   server.on("/", HTTP_GET, [](AsyncWebServerRequest * request) {
-    String WebHTML;
-    if(CODE_FOR_DOx_DEVICE){ 
-      WebHTML = "<font size=\"3\">" + GV_LCD_MAIN_TEXT[1] + "\nDisolved Oxygen Sensor" + "\nDoxMAX: " + String(GV_DOx_TOOHIGHVALUE) + "\nDoxMIN: " + String(GV_DOx_TOOLOWVALUE) + "\nMAC: " + MACaddress + "\nUp Time: " + String(millis() + "<\/font>"); 
-    } else {
-      WebHTML = "<font size=3>" + GV_LCD_MAIN_TEXT[1] + "\nDisolved Oxygen Sensor" + "\nDoxMAX: " + String(GV_DOx_TOOHIGHVALUE) + "\nDoxMIN: " + String(GV_DOx_TOOLOWVALUE) + "\nMAC: " + MACaddress + "\nUp Time: " + String(millis() + "<\/font>");      
-    }
-    request->send(200, "text/plain", WebHTML);
+    request->send(200, "text/plain", "DoxMAX: " + String(GV_DOx_TOOHIGHVALUE) + "<BR>DoxMIN: " + String(GV_DOx_TOOLOWVALUE) + "<br>" + MACaddress);
     });
       
   //-----------------[ /read ]------------------
@@ -210,7 +204,8 @@ void setup() {
     });
     
   server.begin();
- 
+
+  SENSORLOG.TimeZone(config_TimeZone);
   //---------------------------------------------------------------------------------------------
 }
 //================================================================================================
@@ -239,7 +234,7 @@ void loop() {
         GV_TEMPSALIN_CALTEMP_REMOTE_DOx = false;
   }
       
-  if( CODE_FOR_TEMPSALINITY_DEVICE && GV_TEMPSALIN_CALSALIN_REMOTE_DOx ){ 
+  if( CODE_FOR_TEMPSALINITY_DEVICE && GV_TEMPSALIN_CALTEMP_REMOTE_DOx ){ 
         TEMPSALIN_CalSalin_RemoteDOx( TEMPSALIN_REMOTEDOX_IP );
         GV_TEMPSALIN_CALSALIN_REMOTE_DOx = false;   
   }
@@ -274,7 +269,9 @@ void loop() {
     GV_LCD_MAIN_TEXT[1]=GV_SENSOR_DATA;
     GV_LCD_MAIN_TEXT_INDEX=1;
     LCD_DISPLAY(GV_LCD_MAIN_TEXT[GV_LCD_MAIN_TEXT_INDEX],0,0,ClearLCD,PrintSerial);
-    SENSORLOG.DeviceName = GV_LCD_MAIN_TEXT[1];
+    // SensorLog
+    SENSORLOG.DeviceName =  GV_LCD_MAIN_TEXT[1];
+    
     GV_QUERY_SENSOR_NAME_ON_NEXT_COMMAND = false;
   }
 
@@ -297,8 +294,7 @@ void loop() {
       SendCommandToSensorAndSetReturnGVVariables(ReadDOx);
       LCD_DISPLAY(GV_SENSOR_DATA, 0, 1, NoClearLCD, PrintSerial);
       LCD_DISPLAY("  ", GV_SENSOR_DATA.length(), 1, NoClearLCD, NoSerial);
-      SENSORLOG.slog('D',GV_SENSOR_DATA.toFloat());
-      Serial.print("sCurrentIndex: ");Serial.println(SENSORLOG.sCurrentIndex);
+      SENSORLOG.slog('D', GV_SENSOR_DATA.toFloat());
     }
     if (CODE_FOR_TEMPSALINITY_DEVICE){
       if (GV_TEMPSALIN_ALTERNATE == 'T') {                                             // b/c device was running slow due to two long reads at the same time.  Alertnate between reads.
@@ -344,6 +340,7 @@ bool TEMPSALIN_CalTemp_RemoteDOx( String SensorIPToCalibrate ){
   int httpResponseCode = http.GET();
   Serial.println(httpResponseCode);
   delay(2000);
+  return true;
 }
 
 bool TEMPSALIN_CalSalin_RemoteDOx( String SensorIPToCalibrate ){
@@ -354,7 +351,8 @@ bool TEMPSALIN_CalSalin_RemoteDOx( String SensorIPToCalibrate ){
   DoxLED.LED_SendCalToDOx();  
   int httpResponseCode = http.GET();
   Serial.println(httpResponseCode);
-  delay(2000);  
+  delay(2000);
+  return true;  
 }
 
 void SendAlert_IFTTT(String eventName, String val1, String val2){
@@ -499,6 +497,11 @@ void BUTTON_WasItPressed_ChangeLCD(){
 void SensorHeartBeat() {
 
   if ((millis() - HeartBeatMillis) > 1000) {
+    Serial.println(SENSORLOG.SAVELOGSTOWEBFILE);
+    if(SENSORLOG.SAVELOGSTOWEBFILE) LCD_DISPLAY("L", 13, 1, NoClearLCD, NoSerial);
+    else LCD_DISPLAY(" ", 13, 1, NoClearLCD, NoSerial);
+    Serial.print("DBUGText: ");Serial.println(SENSORLOG.DBUGtext);
+    
     //GV_DOX,GV_TEMP,GV_SALIN
     if (CODE_FOR_DOx_DEVICE){
        if ( (GV_DOX >= GV_DOx_TOOHIGHVALUE) || (GV_DOX <= GV_DOx_TOOLOWVALUE) ) { DoxLED.LED_Alert('H'); SendAlert_IFTTT("Sensor_Value_Alert", GV_LCD_MAIN_TEXT[1], String(GV_DOX)); }
