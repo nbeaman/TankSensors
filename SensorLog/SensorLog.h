@@ -9,22 +9,34 @@ class SensorLog{
 	SensorLog();
 	~SensorLog(); 
 
-struct SensorDataLog{
-	char		 	when[450][9];
-	char 			type[450];
-	float 			val[450];		
-};
-
-struct SensorTextLog{
-	char		 	when[450][9];
-	char 			type[450];
-	char 			Txt[450][15];		
-};
 	String		DBUGtext;
 	String		LogWebServerIP;	
 	String		DeviceName;
+	bool		ConnectedTOPHPWebServer;
+	bool		SAVELOGSTOWEBFILE;
+	int 		sCurrentIndex;
+
+    void 	slog(char type, float val);
+	void 	stlog(char type, String Txt);
+	int 	TimeZone(int TimeOffset);
+	void 	setDBUGText(String T);
 	
-	int 	sCurrentIndex;
+  private:
+	struct SensorDataLog{
+		char		 	when[450][9];
+		char 			type[450];
+		float 			val[450];		
+	};
+
+	struct SensorTextLog{
+		char		 	when[450][9];
+		char 			type[450];
+		char 			Txt[450][15];		
+	};
+	
+
+	
+
 	int 	sMAX_LOG_INDEX;
 	bool 	sTIME_TO_SEND_AND_CLEAR=false;	
 	String	sTextFullLog;
@@ -37,12 +49,11 @@ struct SensorTextLog{
 	SensorDataLog SLOG;
 	SensorTextLog TLOG;
 
-    void 	slog(char type, float val);
-	void 	stlog(char type, String Txt);
 	float 	GetVal(int i);
+	
+
 	void 	POSTtextFullLog(String IP, char sORst);
-	int 	TimeZone(int TimeOffset);
-	void 	sSendAndClearLogs();	
+	void 	sSendAndClearLogs();		
 	void 	sClear();
 	void 	stClear();
 

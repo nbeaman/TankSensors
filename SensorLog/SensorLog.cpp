@@ -10,14 +10,11 @@
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP);
 
-// Variables to save date and time
-String formattedDate;
-String dayStamp;
-String timeStamp;
-
 String		DBUGtext;
 String		LogWebServerIP;
 String		DeviceName = "NotAssigned";
+bool		ConnectedTOPHPWebServer = true;
+bool		SAVELOGSTOWEBFILE = false;
 
 int 		sCurrentIndex=0;
 int 		sMAX_LOG_INDEX=3;
@@ -28,6 +25,7 @@ int 		stCurrentIndex=0;
 int 		stMAX_LOG_INDEX=450;
 bool 		stTIME_TO_SEND_AND_CLEAR=false;	
 String		stTextFullLog;
+unsigned long LastTimeTriedPHPwebserverMillis;
 
 struct SensorDataLog{
 	char		 	when[450][9];
@@ -45,14 +43,14 @@ SensorDataLog SLOG;
 SensorTextLog TLOG;
 
 
-//<<constructor>> setup the LED, make pin 13 an OUTPUT
+//<<constructor>> 
 SensorLog::SensorLog(){
 	sCurrentIndex=-1;				// -1 b/c we want to start at index 0 for the slog function
 	sMAX_LOG_INDEX=450;
 	stCurrentIndex=-1;				// -1 b/c we want to start at index 0 for the stlog function
 	stMAX_LOG_INDEX=450;
-
-
+	LastTimeTriedPHPwebserverMillis=millis();
+	ConnectedTOPHPWebServer=true;
 }
  
 //<<destructor>>
@@ -64,20 +62,29 @@ int SensorLog::TimeZone(int TimeOffset){
 	timeClient.update();	
 }
 
-float SensorLog::GetVal(int i){
-	return	SLOG.val[i];
+void SensorLog::POSTtextFullLog(String IP, char sORst){
+	
+	if(SAVELOGSTOWEBFILE){									// code using library will set this to true or false depending on if they have a php web server to save logs.
+		
+		if(ConnectedTOPHPWebServer || (millis() - LastTimeTriedPHPwebserverMillis) > 300000){		// try every 15 minutes to connect to php web server if we were unsuccessfull before.
+			LastTimeTriedPHPwebserverMillis=millis();
+			int httpResponseCode;
+			HTTPClient http;
+			http.begin(IP);
+			http.addHeader("Content-Type", "text/plain");             //Specify content-type header
+			if (sORst=='s') httpResponseCode = http.POST(sTextFullLog);
+			else httpResponseCode = http.POST(sTextFullLog);
+			setDBUGText(String(httpResponseCode));
+			if(httpResponseCode ==-1) ConnectedTOPHPWebServer=false;
+			else ConnectedTOPHPWebServer=true;
+			http.end();  //Close connection		
+				
+		}	
+	}	
 }
 
-void SensorLog::POSTtextFullLog(String IP, char sORst){
-	int httpResponseCode;
-	
-	HTTPClient http;
-    http.begin(IP);
-    http.addHeader("Content-Type", "text/plain");             //Specify content-type header
-	if (sORst=='s') httpResponseCode = http.POST(sTextFullLog);
-	else httpResponseCode = http.POST(sTextFullLog);
-	DBUGtext = String(httpResponseCode);
-	http.end();  //Close connection
+void SensorLog::setDBUGText(String T){
+	DBUGtext = T;
 }
 
 void SensorLog::sSendAndClearLogs(){
@@ -91,6 +98,7 @@ void SensorLog::sSendAndClearLogs(){
 		sTextFullLog= sTextFullLog + String(SLOG.val[i]) + ",";
 	}
 	POSTtextFullLog("http://" + LogWebServerIP + "/TextFullLog.php?devicename=" + DeviceName + "&logdata=" + sTextFullLog,'s');
+	
 	sCurrentIndex=0;
 	
 }

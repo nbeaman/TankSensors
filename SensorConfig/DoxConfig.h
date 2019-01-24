@@ -3,6 +3,7 @@
 #define config_LED_NUMBER_OF_PINS 7
 #define config_SensorLogPHPwebserver "10.0.0.28"
 #define config_TimeZone -18000
+#define config_SAVELOGSTOWEBFILE true
 #define config_DOxSensorAddress          97
 #define config_SalinitySensorAddress     100
 #define config_TemperatureSensorAddress  102
