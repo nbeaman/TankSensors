@@ -1,10 +1,23 @@
 #include <WiFi.h>                 //WiFi
 #include <AsyncTCP.h>             //WebServer
 #include <ESPAsyncWebServer.h>    //WebServer
-#include <Wire.h>                 //enable I2C .
+#include <Wire.h>                 //enable I2C
 #include <LiquidCrystal_I2C.h>    //LCD
 #include <Button.h>               //Button
 #include <HTTPClient.h>
+
+//============[ CODE IS FOR WHICH SENSOR ]==========
+#define CODE_FOR_DOx_DEVICE           true
+#define CODE_FOR_TEMPSALINITY_DEVICE  false
+// REMEMBER: Change LED_NUMBER_OF_LEDS in DoxLED.cpp  // 7 for NeoPixel Jewel, 12 for NeoPixel Ring.
+//==================================================
+//-------------
+#if (CODE_FOR_DOx_DEVICE)
+#include <DoxConfig.h>
+#else
+#include <TempSalinConfig.h>
+#endif
+//==================================================
 
 #include <DoxLED.h>               // My custom library that uses FastLED.h
 DoxLED DoxLED;
@@ -16,18 +29,6 @@ SensorLog SENSORLOG;
 //-----------[ DBUG ]-------------------------------
 const int DBUG = 0;               // Set this to 0 for no serial output for debugging, 1 for moderate debugging, 2 for FULL debugging to see serail output in the Arduino GUI.
 //--------------------------------------------------
-
-//============[ CODE IS FOR WHICH SENSOR ]==========
-#define CODE_FOR_DOx_DEVICE           true
-#define CODE_FOR_TEMPSALINITY_DEVICE  false
-// REMEMBER: Change LED_NUMBER_OF_LEDS in DoxLED.cpp  // 7 for NeoPixel Jewel, 12 for NeoPixel Ring.
-//-------------
-#if (CODE_FOR_DOx_DEVICE)
-#include <DoxConfig.h>
-#else
-#include <TempSalinConfig.h>
-#endif
-//==================================================
 
 //-----------[ SENSOR LIMITS ]----------------
 float   GV_DOx_TOOHIGHVALUE         = 19.00;
@@ -294,7 +295,7 @@ void loop() {
       SendCommandToSensorAndSetReturnGVVariables(ReadDOx);
       LCD_DISPLAY(GV_SENSOR_DATA, 0, 1, NoClearLCD, PrintSerial);
       LCD_DISPLAY("  ", GV_SENSOR_DATA.length(), 1, NoClearLCD, NoSerial);
-      SENSORLOG.slog('D', GV_SENSOR_DATA.toFloat());
+      SENSORLOG.slog('D', GV_SENSOR_DATA.toFloat()); Serial.print("SENSORLOG.sCurrentIndex"); Serial.println(String(SENSORLOG.sCurrentIndex));
     }
     if (CODE_FOR_TEMPSALINITY_DEVICE){
       if (GV_TEMPSALIN_ALTERNATE == 'T') {                                             // b/c device was running slow due to two long reads at the same time.  Alertnate between reads.
@@ -320,7 +321,16 @@ void loop() {
   SensorHeartBeat();
 
   BUTTON_WasItPressed_ChangeLCD();
-  
+
+  if(GV_BOOTING_UP) { 
+    SENSORLOG.stlog('S',"BOOTUP1" + String(SENSORLOG.stCurrentIndex));Serial.print("SENSORLOG.stCurrentIndex"); Serial.println(String(SENSORLOG.stCurrentIndex)); 
+    SENSORLOG.stlog('S',"BOOTUP2" + String(SENSORLOG.stCurrentIndex));Serial.print("SENSORLOG.stCurrentIndex"); Serial.println(String(SENSORLOG.stCurrentIndex));
+    SENSORLOG.stlog('S',"BOOTUP3" + String(SENSORLOG.stCurrentIndex));Serial.print("SENSORLOG.stCurrentIndex"); Serial.println(String(SENSORLOG.stCurrentIndex));
+    SENSORLOG.stlog('S',"BOOTUP4" + String(SENSORLOG.stCurrentIndex));Serial.print("SENSORLOG.stCurrentIndex"); Serial.println(String(SENSORLOG.stCurrentIndex)); 
+  }
+
+  SENSORLOG.HaveSensorlogLibCheckSendLogMillis();   // if logs have not reached their MAX (making Sensorlog.h) you still
+
   GV_BOOTING_UP=false;
   
 }
@@ -498,6 +508,7 @@ void SensorHeartBeat() {
 
   if ((millis() - HeartBeatMillis) > 1000) {
     Serial.println(SENSORLOG.SAVELOGSTOWEBFILE);
+    
     if(SENSORLOG.SAVELOGSTOWEBFILE) LCD_DISPLAY("L", 13, 1, NoClearLCD, NoSerial);
     else LCD_DISPLAY(" ", 13, 1, NoClearLCD, NoSerial);
     Serial.print("DBUGText: ");Serial.println(SENSORLOG.DBUGtext);
