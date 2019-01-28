@@ -15,11 +15,13 @@ class SensorLog{
 	bool		ConnectedTOPHPWebServer;
 	bool		SAVELOGSTOWEBFILE;
 	int 		sCurrentIndex;
-
+	int 		stCurrentIndex;
+	
     void 	slog(char type, float val);
 	void 	stlog(char type, String Txt);
-	int 	TimeZone(int TimeOffset);
+	void 	TimeZone(int TimeOffset);
 	void 	setDBUGText(String T);
+	void 	HaveSensorlogLibCheckSendLogMillis();
 	
   private:
 	struct SensorDataLog{
@@ -31,17 +33,15 @@ class SensorLog{
 	struct SensorTextLog{
 		char		 	when[450][9];
 		char 			type[450];
-		char 			Txt[450][15];		
+		String 			Txt[450];		
 	};
-	
-
 	
 
 	int 	sMAX_LOG_INDEX;
 	bool 	sTIME_TO_SEND_AND_CLEAR=false;	
 	String	sTextFullLog;
 	
-	int 	stCurrentIndex;
+
 	int 	stMAX_LOG_INDEX;
 	bool 	stTIME_TO_SEND_AND_CLEAR=false;
 	String	stTextFullLog;
@@ -51,9 +51,9 @@ class SensorLog{
 
 	float 	GetVal(int i);
 	
-
-	void 	POSTtextFullLog(String IP, char sORst);
-	void 	sSendAndClearLogs();		
+	void 	POSTtextFullLog(String IP);
+	void 	sSendAndClearLogs();
+	void 	stSendAndClearLogs();
 	void 	sClear();
 	void 	stClear();
 
