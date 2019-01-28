@@ -81,7 +81,7 @@ void SensorLog::POSTtextFullLog(String sURL){
 			HTTPClient http;
 			http.begin(sURL);
 			http.addHeader("Content-Type", "text/plain");             //Specify content-type header
-			http.POST(sTextFullLog);
+			httpResponseCode = http.POST(sTextFullLog);
 			setDBUGText(String(httpResponseCode));
 			if(httpResponseCode ==-1) ConnectedTOPHPWebServer=false;
 			else ConnectedTOPHPWebServer=true;
@@ -143,9 +143,9 @@ void SensorLog::slog(char type, float val){
 	  if( (sCurrentIndex >= 3) || ((millis() - sLastTimeLogSent) >= 300000) ){ 
 		  if(sCurrentIndex !=- 1) sSendAndClearLogs();  // send log every 10 minutes or when index reaches max.
 	  }
-	  else {
-		  sCurrentIndex =  sCurrentIndex + 1;
-	  }
+
+	  sCurrentIndex =  sCurrentIndex + 1;
+	  
 	  T = timeClient.getFormattedTime();
 	  for(i=0; i<9; i++){
 		  SLOG.when[sCurrentIndex][i]=T[i];
@@ -162,9 +162,9 @@ void SensorLog::stlog(char type, String Txt){
 	  if( (stCurrentIndex >= 3) || ((millis() - stLastTimeLogSent) >= 300000) ){
 		  if(stCurrentIndex !=- 1) stSendAndClearLogs();  // send log every 10 minutes or when index reaches max.
 	  }
-	  else {
-		  stCurrentIndex = stCurrentIndex + 1;
-	  }
+
+	  stCurrentIndex = stCurrentIndex + 1;
+
 	  T = timeClient.getFormattedTime();
 	  for(i=0; i<9; i++){
 		  TLOG.when[stCurrentIndex][i]	=	T[i];
