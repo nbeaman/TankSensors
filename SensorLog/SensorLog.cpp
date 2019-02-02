@@ -10,11 +10,13 @@
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP);
 
-String		DBUGtext;
-String		LogWebServerIP;
-String		DeviceName = "NotAssigned";
-bool		ConnectedTOPHPWebServer = true;
-bool		SAVELOGSTOWEBFILE = false;
+// PUBLIC variables - accessable by app using this library
+String		DBUGtext;						// to pass dbug info for testing to app using this library
+String		LogWebServerIP;					// IP address of PHP Webserver with php code to save logs
+String		DeviceName = "NotAssigned";		// Sensor Device name
+String		DeviceMAC;
+bool		ConnectedTOPHPWebServer = true; // trie of PHP Webserver is connectable/available
+bool		SAVELOGSTOWEBFILE = false;		// true if you want to save logs
 
 int 		sCurrentIndex;
 int 		sMAX_LOG_INDEX;
@@ -29,7 +31,9 @@ String		stTextFullLog;
 unsigned long sLastTimeLogSent;
 unsigned long stLastTimeLogSent;
 
-unsigned long LastTimeTriedPHPwebserverMillis;
+unsigned long 	LastTimeTriedPHPwebserverMillis;
+unsigned long	OnyLogSensorDataEverMillis;
+unsigned long	LastSensorDataLoggedMillis;
 
 struct SensorDataLog{
 	char		 	when[450][9];
@@ -51,6 +55,8 @@ SensorTextLog TLOG;
 SensorLog::SensorLog(){
 	stCurrentIndex	=	-1;
 	sCurrentIndex	=	-1;
+	OnyLogSensorDataEverMillis = 30000;
+	LastSensorDataLoggedMillis=millis();
 	sLastTimeLogSent=millis();
 	stLastTimeLogSent=millis();
 	LastTimeTriedPHPwebserverMillis=millis();
@@ -62,16 +68,16 @@ SensorLog::~SensorLog(){/*nothing to destruct*/}
 
 void SensorLog::TimeZone(int TimeOffset){
 	timeClient.begin();
-	timeClient.setTimeOffset(TimeOffset);       //US Eastern time is 3600 * (-5)
+	timeClient.setTimeOffset(TimeOffset);       //US Eastern time is 3600 * (-5) = -18000
 	timeClient.update();	
 }
 
 void SensorLog::HaveSensorlogLibCheckSendLogMillis(){
-	if((millis() - sLastTimeLogSent) > 300000) sSendAndClearLogs();
-	if((millis() - stLastTimeLogSent) > 300000) stSendAndClearLogs();
+	if((millis() - sLastTimeLogSent) > 300000) if(sCurrentIndex != -1) sSendAndClearLogs();
+	if((millis() - stLastTimeLogSent) > 300000) if(stCurrentIndex != -1) stSendAndClearLogs();
 }
 
-void SensorLog::POSTtextFullLog(String sURL){
+void SensorLog::POSTtextFullLog(String SensorURL, char logType){
 	
 	if(SAVELOGSTOWEBFILE){									// code using library will set this to true or false depending on if they have a php web server to save logs.
 		
@@ -79,12 +85,18 @@ void SensorLog::POSTtextFullLog(String sURL){
 			LastTimeTriedPHPwebserverMillis=millis();
 			int httpResponseCode;
 			HTTPClient http;
-			http.begin(sURL);
+			http.begin(SensorURL);
 			http.addHeader("Content-Type", "text/plain");             //Specify content-type header
-			httpResponseCode = http.POST(sTextFullLog);
-			setDBUGText(String(httpResponseCode));
+			
+			if(logType == 's') httpResponseCode = http.POST(SensorURL);
+			else {
+				httpResponseCode = http.POST(SensorURL);
+				setDBUGText(SensorURL);
+			}
+
 			if(httpResponseCode ==-1) ConnectedTOPHPWebServer=false;
 			else ConnectedTOPHPWebServer=true;
+			
 			http.end();  //Close connection		
 				
 		}	
@@ -105,7 +117,7 @@ void SensorLog::sSendAndClearLogs(){
 		sTextFullLog= sTextFullLog + String(SLOG.type[i]) + ",";
 		sTextFullLog= sTextFullLog + String(SLOG.val[i]) + ",";
 	}
-	POSTtextFullLog("http://" + LogWebServerIP + "/TextFullLog.php?devicename=" + DeviceName + "&logdata=" + sTextFullLog);
+	POSTtextFullLog("http://" + LogWebServerIP + "/TextFullLog.php?devicename=" + DeviceName + "-DATA&logdata=" + sTextFullLog, 's');
 	
 	sLastTimeLogSent=millis();
 	
@@ -113,22 +125,46 @@ void SensorLog::sSendAndClearLogs(){
 	
 }
 
+void SensorLog::slog(char type, float val){
+	String T;
+	int i;
+      
+	if( (sCurrentIndex >= 3) || ((millis() - sLastTimeLogSent) >= 300000) ){ 
+		 if(sCurrentIndex != -1) sSendAndClearLogs();  // send log every 10 minutes or when index reaches max.
+	}
+
+	if((millis() - LastSensorDataLoggedMillis) > OnyLogSensorDataEverMillis){
+		sCurrentIndex =  sCurrentIndex + 1;
+		  
+		T = timeClient.getFormattedTime();
+		for(i=0; i<9; i++){
+			SLOG.when[sCurrentIndex][i]=T[i];
+		}
+		SLOG.when[8][i]='\0';
+		SLOG.type[sCurrentIndex] 	= type;
+		SLOG.val[sCurrentIndex] 	= val;
+
+		LastSensorDataLoggedMillis=millis();
+	}
+
+}
+
 void SensorLog::stSendAndClearLogs(){
-	int i,si;
+	int sti,si;
 	char temp[15];
 	stTextFullLog="";
 	
-	for(i=0; i <=stCurrentIndex; i++){
+	for(sti=0; sti <= stCurrentIndex; sti++){
 		
-		stTextFullLog= stTextFullLog + String(TLOG.when[i]) + ",";
-		stTextFullLog= stTextFullLog + String(TLOG.type[i]) + ",";
+		stTextFullLog= stTextFullLog + String(TLOG.when[sti]) + ",";
+		stTextFullLog= stTextFullLog + String(TLOG.type[sti]) + ",";
 		for(si=0; si<14; si++){
-			temp[si]=TLOG.Txt[i][si];
+			temp[si]=TLOG.Txt[sti][si];
 		}
 		temp[14]='\0';
 		stTextFullLog= stTextFullLog + String(temp) + ",";
 	}
-	POSTtextFullLog("http://" + LogWebServerIP + "/TextFullLog.php?devicename=" + DeviceName + "-TEXT&logdata=" + stTextFullLog);
+	POSTtextFullLog("http://" + LogWebServerIP + "/TextFullLog.php?devicename=" + DeviceName + "-INFO&logdata=" + stTextFullLog, 't');
 	
 	stLastTimeLogSent=millis();
 	
@@ -136,31 +172,12 @@ void SensorLog::stSendAndClearLogs(){
 	
 }
 
-void SensorLog::slog(char type, float val){
-	  String T;
-	  int i;
-      
-	  if( (sCurrentIndex >= 3) || ((millis() - sLastTimeLogSent) >= 300000) ){ 
-		  if(sCurrentIndex !=- 1) sSendAndClearLogs();  // send log every 10 minutes or when index reaches max.
-	  }
-
-	  sCurrentIndex =  sCurrentIndex + 1;
-	  
-	  T = timeClient.getFormattedTime();
-	  for(i=0; i<9; i++){
-		  SLOG.when[sCurrentIndex][i]=T[i];
-	  }
-	  SLOG.when[8][i]='\0';
-      SLOG.type[sCurrentIndex] 	= type;
-      SLOG.val[sCurrentIndex] 	= val;
-}
-
 void SensorLog::stlog(char type, String Txt){
 	  String T;
 	  int i;
       
-	  if( (stCurrentIndex >= 3) || ((millis() - stLastTimeLogSent) >= 300000) ){
-		  if(stCurrentIndex !=- 1) stSendAndClearLogs();  // send log every 10 minutes or when index reaches max.
+	  if( (stCurrentIndex == 3) || ((millis() - stLastTimeLogSent) >= 300000) ){  // send log every 5 minutes or when index reaches max.
+		  if(stCurrentIndex != -1) stSendAndClearLogs();  
 	  }
 
 	  stCurrentIndex = stCurrentIndex + 1;
@@ -173,12 +190,4 @@ void SensorLog::stlog(char type, String Txt){
       TLOG.type[stCurrentIndex] 		= type;
 	  TLOG.Txt[stCurrentIndex] 			= Txt;
 	  // make sure the last character in the char array is a NULL. This makes the text only 14 chars long.
-}
-
-void SensorLog::sClear(){
-	sCurrentIndex=0;
-}
-
-void SensorLog::stClear(){
-	stCurrentIndex=0;
 }
