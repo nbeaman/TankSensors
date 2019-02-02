@@ -111,7 +111,7 @@ void setup() {
   
   IPAddress IP=WiFi.localIP();
   GV_LCD_MAIN_TEXT[3]=String(IP[0]) + '.' + String(IP[1]) + '.' + String(IP[2]) + '.' + String(IP[3]);
-  //Serial.println(GV_LCD_MAIN_TEXT[3]);
+  Serial.println(GV_LCD_MAIN_TEXT[3]);
   
   byte mac[6];
   WiFi.macAddress(mac);
@@ -300,11 +300,13 @@ void loop() {
     if (CODE_FOR_TEMPSALINITY_DEVICE){
       if (GV_TEMPSALIN_ALTERNATE == 'T') {                                             // b/c device was running slow due to two long reads at the same time.  Alertnate between reads.
         SendCommandToSensorAndSetReturnGVVariables(String(config_TemperatureSensorAddress) + ":r");
-        LCD_DISPLAY(GV_SENSOR_DATA + "   ", 0, 1, NoClearLCD, PrintSerial);
+        LCD_DISPLAY(String(GV_SENSOR_DATA.toFloat()) + " ", 0, 1, NoClearLCD, PrintSerial);
+        SENSORLOG.slog('T', GV_SENSOR_DATA.toFloat());
         GV_TEMPSALIN_ALTERNATE = 'S';                                                   // next reading will be Salinity.
       } else {
         SendCommandToSensorAndSetReturnGVVariables(String(config_SalinitySensorAddress) + ":r");
-        LCD_DISPLAY(GV_SENSOR_DATA + " ", 13-GV_SENSOR_DATA.length(), 1, NoClearLCD, PrintSerial);
+        LCD_DISPLAY(String(GV_SENSOR_DATA.toFloat()) + " ", 11-GV_SENSOR_DATA.length(), 1, NoClearLCD, PrintSerial);
+        SENSORLOG.slog('S', GV_SENSOR_DATA.toFloat());
         GV_TEMPSALIN_ALTERNATE = 'T';                                                  // next reading will be Temp.
       }
     }
@@ -323,15 +325,15 @@ void loop() {
   BUTTON_WasItPressed_ChangeLCD();
 
   if(GV_BOOTING_UP) { 
-    SENSORLOG.stlog('S',"BOOTUP1" + String(SENSORLOG.stCurrentIndex)); 
-    SENSORLOG.stlog('S',"BOOTUP2" + String(SENSORLOG.stCurrentIndex));
-    SENSORLOG.stlog('S',"BOOTUP3" + String(SENSORLOG.stCurrentIndex));
-    SENSORLOG.stlog('S',"BOOTUP4" + String(SENSORLOG.stCurrentIndex)); 
+    SENSORLOG.stlog('L',"BOOTUP");
+    SENSORLOG.stSendAndClearLogs();
   }
 
-  SENSORLOG.HaveSensorlogLibCheckSendLogMillis();   // if logs have not reached their MAX (making Sensorlog.h) you still
+  SENSORLOG.HaveSensorlogLibCheckSendLogMillis();   // if logs have not reached their MAX, save logs every 5 minutes.  This is so certain logs that never reach their
+                                                    // index MAX (like the INFO log).  Every 5 minutes check to see if their are any logs that need saving.
+                                                    // for example the INFO log "BOOTUP" will never be saved b/c MAX index will never be reached.  So this will do it.
 
-  if(GV_BOOTING_UP) SendCommandToSensorAndSetReturnGVVariables("cal");
+  if(GV_BOOTING_UP && CODE_FOR_DOx_DEVICE) SendCommandToSensorAndSetReturnGVVariables("cal");
   
   GV_BOOTING_UP=false;
   
@@ -505,8 +507,11 @@ void BUTTON_WasItPressed_ChangeLCD(){
 void SensorHeartBeat() {
 
   if ((millis() - HeartBeatMillis) > 1000) {
-    
-    if(SENSORLOG.SAVELOGSTOWEBFILE) LCD_DISPLAY("L", 13, 1, NoClearLCD, NoSerial);
+    Serial.print("DBUGtext: ");Serial.println(String(SENSORLOG.DBUGtext));
+    if(SENSORLOG.SAVELOGSTOWEBFILE){
+      if(SENSORLOG.ConnectedTOPHPWebServer) LCD_DISPLAY("L", 13, 1, NoClearLCD, NoSerial);
+      else LCD_DISPLAY(String(char(237)), 13, 1, NoClearLCD, NoSerial);
+    }
     else LCD_DISPLAY(" ", 13, 1, NoClearLCD, NoSerial);
     
     
@@ -530,7 +535,7 @@ void SensorHeartBeat() {
     if(DBUG==2) Serial.println(HeartBeat);
     LCD_DISPLAY(&HeartBeat, 15, 0, NoClearLCD, NoSerial);
 
-    if(GV_NOTIFY_ON == "Y") LCD_DISPLAY("Y",15,1,NoClearLCD,NoSerial);
+    if(GV_NOTIFY_ON == "Y") LCD_DISPLAY("!",15,1,NoClearLCD,NoSerial);
     else LCD_DISPLAY(" ",15,1,NoClearLCD,NoSerial);
     
     HeartBeatMillis = millis();
