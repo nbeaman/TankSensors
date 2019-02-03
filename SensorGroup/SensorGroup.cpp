@@ -8,6 +8,7 @@
 
 const int MAXmyGroupEntries = 30;
 
+String	DBUGtext="";
 String 	PHPWebServerIP;
 String	TSsensorMAC;
 String	MyGroupIP[MAXmyGroupEntries];
@@ -24,11 +25,13 @@ SensorGroup::~SensorGroup(){/*nothing to destruct*/}
 void	SensorGroup::Add(String gNewMemberIP){
 	
 	int httpResponseCode;
-	String	gURL = "http://" + PHPWebServerIP + "/SensorGroup.php?action=add?gIP=" + gNewMemberIP;
+	String	gURL = "http://" + PHPWebServerIP + "/SensorGroup.php?Action=add&FromMAC=" + TSsensorMAC + "&SensorIP=" + gNewMemberIP;
+	
 	HTTPClient http;
 	http.begin(gURL);
 	http.addHeader("Content-Type", "text/plain");             //Specify content-type header			
 	httpResponseCode = http.POST(gURL);
+	DBUGtext = httpResponseCode;
 	http.end();  //Close connection	
 
 	MyGroupIP_ADD(gNewMemberIP);
@@ -37,7 +40,7 @@ void	SensorGroup::Add(String gNewMemberIP){
 void	SensorGroup::Remove(String gRemoveMemberIP){
 	
 	int httpResponseCode;
-	String	gURL = "http://" + PHPWebServerIP + "/SensorGroup.php?action=remove?gIP=" + gRemoveMemberIP;
+	String	gURL = "http://" + PHPWebServerIP + "/SensorGroup.php?Action=remove&FromMAC=" + TSsensorMAC + "&SensorIP=" + gRemoveMemberIP;
 	HTTPClient http;
 	http.begin(gURL);
 	http.addHeader("Content-Type", "text/plain");             //Specify content-type header			

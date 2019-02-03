@@ -9,6 +9,7 @@ class SensorGroup{
 		SensorGroup();
 		~SensorGroup();
 
+		String	DBUGtext;
 		String 	PHPWebServerIP;
 		String	TSsensorMAC;
 		String	MyGroupIP[30];
