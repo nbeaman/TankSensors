@@ -117,7 +117,7 @@ void SensorLog::sSendAndClearLogs(){
 		sTextFullLog= sTextFullLog + String(SLOG.type[i]) + ",";
 		sTextFullLog= sTextFullLog + String(SLOG.val[i]) + ",";
 	}
-	POSTtextFullLog("http://" + LogWebServerIP + "/TextFullLog.php?devicename=" + DeviceName + "-DATA&logdata=" + sTextFullLog, 's');
+	POSTtextFullLog("http://" + LogWebServerIP + "/TextFullLog.php?devicename=" + DeviceName + "&MAC=" + DeviceMAC + "-DATA&logdata=" + sTextFullLog, 's');
 	
 	sLastTimeLogSent=millis();
 	
@@ -164,7 +164,7 @@ void SensorLog::stSendAndClearLogs(){
 		temp[14]='\0';
 		stTextFullLog= stTextFullLog + String(temp) + ",";
 	}
-	POSTtextFullLog("http://" + LogWebServerIP + "/TextFullLog.php?devicename=" + DeviceName + "-INFO&logdata=" + stTextFullLog, 't');
+	POSTtextFullLog("http://" + LogWebServerIP + "/TextFullLog.php?devicename=" + DeviceName + "&MAC=" + DeviceMAC + "-INFO&logdata=" + stTextFullLog, 't');
 	
 	stLastTimeLogSent=millis();
 	

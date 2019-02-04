@@ -25,6 +25,8 @@ DoxLED DoxLED;
 #include <SensorLog.h>
 SensorLog SENSORLOG;
 
+#include <SensorGroup.h>
+SensorGroup SENSORGROUP;
 
 //-----------[ DBUG ]-------------------------------
 const int DBUG = 0;               // Set this to 0 for no serial output for debugging, 1 for moderate debugging, 2 for FULL debugging to see serail output in the Arduino GUI.
@@ -111,17 +113,18 @@ void setup() {
   
   IPAddress IP=WiFi.localIP();
   GV_LCD_MAIN_TEXT[3]=String(IP[0]) + '.' + String(IP[1]) + '.' + String(IP[2]) + '.' + String(IP[3]);
-  Serial.println(GV_LCD_MAIN_TEXT[3]);
+  if(DBUG) Serial.println(GV_LCD_MAIN_TEXT[3]);
   
   byte mac[6];
   WiFi.macAddress(mac);
   MACaddress   = String(mac[5],HEX) + String(mac[4],HEX) + String(mac[3],HEX) + String(mac[2],HEX) + String(mac[1],HEX) + String(mac[0],HEX);
   GV_LCD_MAIN_TEXT[0] = MACaddress;
-  //Serial.println( GV_LCD_MAIN_TEXT[0] );
+  if(DBUG) Serial.println( GV_LCD_MAIN_TEXT[0] );
 
   GV_LCD_MAIN_TEXT[2]= "H" + String(GV_DOx_TOOHIGHVALUE) + " L" + String(GV_DOx_TOOLOWVALUE);
 
   SENSORLOG.LogWebServerIP = config_SensorLogPHPwebserver;
+  SENSORLOG.DeviceMAC = MACaddress;
   SENSORLOG.SAVELOGSTOWEBFILE = true;
   
   //---------------------------------[ Sensor Web Page ]-----------------------------------------
@@ -265,7 +268,6 @@ void loop() {
       SendCommandToSensorAndSetReturnGVVariables(String(config_SalinitySensorAddress) + ":name,?\0");
     }    
     
-    //Serial.println(GV_SENSOR_DATA);
     GV_SENSOR_DATA.remove(0,6);
     GV_LCD_MAIN_TEXT[1]=GV_SENSOR_DATA;
     GV_LCD_MAIN_TEXT_INDEX=1;
@@ -346,13 +348,13 @@ void loop() {
 bool TEMPSALIN_CalTemp_RemoteDOx( String SensorIPToCalibrate ){
   HTTPClient http;
   float Celsius = ( GV_TEMP -32 ) * (0.555555);
-  //Serial.print("Celsius: ");Serial.println(Celsius);
+  if(DBUG) Serial.print("Celsius: ");Serial.println(Celsius);
   String URLtext = "http://" + SensorIPToCalibrate + "/send?command=T," + String(Celsius);
   http.begin(URLtext);
-  //Serial.println(URLtext);
+  if(DBUG) Serial.println(URLtext);
   DoxLED.LED_SendCalToDOx();
   int httpResponseCode = http.GET();
-  //Serial.println(httpResponseCode);
+  if(DBUG) Serial.println(httpResponseCode);
   delay(2000);
   return true;
 }
@@ -361,10 +363,10 @@ bool TEMPSALIN_CalSalin_RemoteDOx( String SensorIPToCalibrate ){
   HTTPClient http;  
   String URLtext = "http://" + SensorIPToCalibrate + "/send?command=S," + String(GV_SALIN);
   http.begin(URLtext);
-  //Serial.println(URLtext);
+  if(DBUG) Serial.println(URLtext);
   DoxLED.LED_SendCalToDOx();  
   int httpResponseCode = http.GET();
-  //Serial.println(httpResponseCode);
+  if(DBUG) Serial.println(httpResponseCode);
   delay(2000);
   return true;  
 }
@@ -380,13 +382,12 @@ void SendAlert_IFTTT(String eventName, String val1, String val2){
   } else {
     if((millis() - LastNotificationSentMillis) > 900000){         // 15 minutes
       HTTPClient http;
-      //Serial.println("Notification Sent");
+      if(DBUG) Serial.println("Notification Sent");
       http.begin("https://maker.ifttt.com/trigger/" + eventName + "/with/key/dOO4GGcvxO_pBa0QPwHN19");
       //http.addHeader("Content-Type", "text/plain");             //Specify content-type header
       http.addHeader("Content-Type", "application/json");
   
       String JSONtext = "{ \"value1\" : \"" + val1 + "\", \"value2\" : \"" + val2 + "\" }";
-      //Serial.println(JSONtext);
   
       int httpResponseCode = http.POST(JSONtext);   //Send the actual POST request
       // * could check for response - on my todo list * // 
@@ -412,7 +413,7 @@ String StringTo14chars(String S){
 void SetVariableFromWebRequest(String SetVarCommand){
   
   SetVarCommand.toLowerCase();
-  //Serial.println(SetVarCommand);
+
   int colonCharIndex = SetVarCommand.indexOf(':');
   String tempStr = SetVarCommand.substring(0,colonCharIndex);
   tempStr.toLowerCase();
@@ -450,13 +451,11 @@ void SetVariableFromWebRequest(String SetVarCommand){
     else GV_NOTIFY_ON="N";
   } 
   if(tempStr == "doxcaltemp"){
-    //Serial.println("DOxCal");
     String tempVal = SetVarCommand.substring(colonCharIndex+1,SetVarCommand.length());
     TEMPSALIN_REMOTEDOX_IP = tempVal; 
     GV_TEMPSALIN_CALTEMP_REMOTE_DOx = true;
   }
   if(tempStr == "doxcalsalin"){
-    //Serial.println("DOxCal");
     String tempVal = SetVarCommand.substring(colonCharIndex+1,SetVarCommand.length()); 
     TEMPSALIN_REMOTEDOX_IP = tempVal;
     GV_TEMPSALIN_CALSALIN_REMOTE_DOx = true;
@@ -507,7 +506,6 @@ void BUTTON_WasItPressed_ChangeLCD(){
 void SensorHeartBeat() {
 
   if ((millis() - HeartBeatMillis) > 1000) {
-    Serial.print("DBUGtext: ");Serial.println(String(SENSORLOG.DBUGtext));
     if(SENSORLOG.SAVELOGSTOWEBFILE){
       if(SENSORLOG.ConnectedTOPHPWebServer) LCD_DISPLAY("L", 13, 1, NoClearLCD, NoSerial);
       else LCD_DISPLAY(String(char(237)), 13, 1, NoClearLCD, NoSerial);
@@ -559,8 +557,6 @@ void SendCommandToSensorAndSetReturnGVVariables(String command) {
       String tempStr = command.substring(0,colonCharIndex);
       channel = tempStr.toInt();
       SensorCommand = command.substring(colonCharIndex+1,command.length());
-      //Serial.println(channel);
-     // Serial.println(SensorCommand);
   }
 
   SensorCommand[0] = tolower(SensorCommand[0]);

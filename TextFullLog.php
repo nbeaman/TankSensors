@@ -12,8 +12,9 @@
 
 $strDate = date("m-d-Y");
 $deviceName = $_GET["devicename"];
+$MACaddress = $_GET["MAC"];
 
-$logFileName = $deviceName . "-" . $strDate . ".txt";
+$logFileName = $strDate . "-" . $deviceName . "-" . $MACaddress . ".txt";
 
 $data = $_GET["logdata"];
 

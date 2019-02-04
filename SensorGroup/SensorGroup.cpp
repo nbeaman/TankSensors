@@ -8,7 +8,7 @@
 
 const int MAXmyGroupEntries = 30;
 
-String	DBUGtext="";
+String	sgDBUGtext="";
 String 	PHPWebServerIP;
 String	TSsensorMAC;
 String	MyGroupIP[MAXmyGroupEntries];
@@ -31,7 +31,6 @@ void	SensorGroup::Add(String gNewMemberIP){
 	http.begin(gURL);
 	http.addHeader("Content-Type", "text/plain");             //Specify content-type header			
 	httpResponseCode = http.POST(gURL);
-	DBUGtext = httpResponseCode;
 	http.end();  //Close connection	
 
 	MyGroupIP_ADD(gNewMemberIP);
