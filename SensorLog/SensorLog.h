@@ -9,10 +9,15 @@ class SensorLog{
 	SensorLog();
 	~SensorLog(); 
 
+	String		CodeIsFor;						// this will be set to "DOx" or "TempSalin" by the sketch using this library
+	bool		GotLogFor_T;
+	bool		GotLogFor_S;
 	String		DBUGtext;
 	String		LogWebServerIP;	
 	String		DeviceName;
 	String		DeviceMAC;
+	unsigned long	OnyLogSensorDataEverMillis;
+	
 	bool		ConnectedTOPHPWebServer;
 	bool		SAVELOGSTOWEBFILE;
 	
@@ -27,8 +32,7 @@ class SensorLog{
 	int 		sCurrentIndex;
 	int 		stCurrentIndex;
 	String		stTextFullLog;
-	
-  private:
+
 	struct SensorDataLog{
 		char		 	when[450][9];
 		char 			type[450];
@@ -41,6 +45,10 @@ class SensorLog{
 		String 			Txt[450];		
 	};
 	
+	SensorDataLog SLOG;
+	SensorTextLog TLOG;
+	
+  private:
 
 	
 	unsigned long 	LastTimeTriedPHPwebserverMillis;
@@ -48,15 +56,13 @@ class SensorLog{
 	bool 			sTIME_TO_SEND_AND_CLEAR=false;	
 	String			sTextFullLog;
 	
-	unsigned long	OnyLogSensorDataEverMillis;
 	unsigned long	LastSensorDataLoggedMillis;	
 
 	int 	stMAX_LOG_INDEX;
 	bool 	stTIME_TO_SEND_AND_CLEAR=false;
 	
 	
-	SensorDataLog SLOG;
-	SensorTextLog TLOG;
+
 
 	float 	GetVal(int i);
 	

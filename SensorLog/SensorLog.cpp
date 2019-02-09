@@ -11,6 +11,9 @@ WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP);
 
 // PUBLIC variables - accessable by app using this library
+String		CodeIsFor;						// this will be set to "DOx" or "TempSalin" by the sketch using this library
+bool		GotLogFor_T = false;
+bool		GotLogFor_S = false;
 String		DBUGtext;						// to pass dbug info for testing to app using this library
 String		LogWebServerIP;					// IP address of PHP Webserver with php code to save logs
 String		DeviceName = "NotAssigned";		// Sensor Device name
@@ -128,23 +131,45 @@ void SensorLog::sSendAndClearLogs(){
 void SensorLog::slog(char type, float val){
 	String T;
 	int i;
+	bool LogIt  = false;
       
 	if( (sCurrentIndex >= 3) || ((millis() - sLastTimeLogSent) >= 300000) ){ 
 		 if(sCurrentIndex != -1) sSendAndClearLogs();  // send log every 10 minutes or when index reaches max.
 	}
 
 	if((millis() - LastSensorDataLoggedMillis) > OnyLogSensorDataEverMillis){
-		sCurrentIndex =  sCurrentIndex + 1;
-		  
-		T = timeClient.getFormattedTime();
-		for(i=0; i<9; i++){
-			SLOG.when[sCurrentIndex][i]=T[i];
+		
+		if(CodeIsFor == "DOx"){
+			LogIt = true;
+		}else{
+			if(type == 'T') { GotLogFor_T=true; LogIt = true; }
+			if(GotLogFor_T && type == 'S') { GotLogFor_S=true; LogIt = true; }	
 		}
-		SLOG.when[8][i]='\0';
-		SLOG.type[sCurrentIndex] 	= type;
-		SLOG.val[sCurrentIndex] 	= val;
+			
+		if(LogIt){
+			sCurrentIndex =  sCurrentIndex + 1;
+			  
+			T = timeClient.getFormattedTime();
+			for(i=0; i<9; i++){
+				SLOG.when[sCurrentIndex][i]=T[i];
+			}
+			SLOG.when[8][i]='\0';
+			SLOG.type[sCurrentIndex] 	= type;
+			SLOG.val[sCurrentIndex] 	= val;			
+		}
 
-		LastSensorDataLoggedMillis=millis();
+
+		if(CodeIsFor == "DOx"){
+			LastSensorDataLoggedMillis=millis();		// set timer for next log entry for DOx
+		} else {
+
+			if(GotLogFor_T && GotLogFor_S) {			// For TempSalinity Sensor do not reset log timer until both Temp and Salinity are logged (in that order).
+				LastSensorDataLoggedMillis=millis();	
+				GotLogFor_T = false;
+				GotLogFor_S = false;
+			}
+		}
+
 	}
 
 }

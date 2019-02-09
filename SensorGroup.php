@@ -12,11 +12,12 @@
 
 $Action 	= $_GET["Action"];
 $FromMAC 	= $_GET["FromMAC"];
-$SensorIP 	= $_GET["SensorIP"];
+
 
 $logFileName = $FromMAC . "-GROUP.txt";
 
 if ($Action == "add"){
+	$SensorIP 	= $_GET["SensorIP"];
 	if (file_exists($logFileName)) {
 	  $fh = fopen($logFileName, 'a');
 	  fwrite($fh, $SensorIP . ",");
@@ -28,6 +29,7 @@ if ($Action == "add"){
 }
 
 if ($Action == "remove"){
+	$SensorIP 	= $_GET["SensorIP"];
 	if (file_exists($logFileName)) {
 		$GroupIPlist = file_get_contents($logFileName);
 		echo $GroupIPlist;
@@ -39,8 +41,12 @@ if ($Action == "remove"){
 	fclose($fh);
 }
 
-
-
+if ($Action == "load"){
+	if (file_exists($logFileName)) {
+		$GroupIPlist = file_get_contents($logFileName);
+		echo $GroupIPlist;
+	}
+}
 
 ?>
 

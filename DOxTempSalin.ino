@@ -7,8 +7,8 @@
 #include <HTTPClient.h>
 
 //============[ CODE IS FOR WHICH SENSOR ]==========
-#define CODE_FOR_DOx_DEVICE           true
-#define CODE_FOR_TEMPSALINITY_DEVICE  false
+#define CODE_FOR_DOx_DEVICE           false
+#define CODE_FOR_TEMPSALINITY_DEVICE  true
 // REMEMBER: Change LED_NUMBER_OF_LEDS in DoxLED.cpp  // 7 for NeoPixel Jewel, 12 for NeoPixel Ring.
 //==================================================
 //-------------
@@ -27,6 +27,8 @@ SensorLog SENSORLOG;
 
 #include <SensorGroup.h>
 SensorGroup SENSORGROUP;
+
+
 
 //-----------[ DBUG ]-------------------------------
 const int DBUG = 0;               // Set this to 0 for no serial output for debugging, 1 for moderate debugging, 2 for FULL debugging to see serail output in the Arduino GUI.
@@ -92,6 +94,9 @@ String TEMPSALIN_REMOTEDOX_IP;
 //================================================================================================
 void setup() {
   Serial.begin(115200);
+  //SENSORLOG
+  if(CODE_FOR_DOx_DEVICE) SENSORLOG.CodeIsFor = "DOx";
+  else SENSORLOG.CodeIsFor = "TempSalin";
   
   //I2C
   Wire.begin();                //enable I2C port for the button(s)
@@ -113,7 +118,7 @@ void setup() {
   
   IPAddress IP=WiFi.localIP();
   GV_LCD_MAIN_TEXT[3]=String(IP[0]) + '.' + String(IP[1]) + '.' + String(IP[2]) + '.' + String(IP[3]);
-  if(DBUG) Serial.println(GV_LCD_MAIN_TEXT[3]);
+Serial.println(GV_LCD_MAIN_TEXT[3]);
   
   byte mac[6];
   WiFi.macAddress(mac);
@@ -126,6 +131,11 @@ void setup() {
   SENSORLOG.LogWebServerIP = config_SensorLogPHPwebserver;
   SENSORLOG.DeviceMAC = MACaddress;
   SENSORLOG.SAVELOGSTOWEBFILE = true;
+
+  //SENSORGROUP
+  SENSORGROUP.PHPWebServerIP = config_SensorLogPHPwebserver;
+  SENSORGROUP.TSsensorMAC = MACaddress;
+  SENSORGROUP.LoadMyGroupIParray();
   
   //---------------------------------[ Sensor Web Page ]-----------------------------------------
   //-----------------[ / ]----------------------
@@ -206,7 +216,34 @@ void setup() {
     DoxLED.LED_GROUPFIND_ON  = false;
     request->send(200, "text/plain", "Group Find Off");
     });
-    
+
+  //---------------[ /groupfindoff ]---------------
+  server.on("/groupAdd", HTTP_GET, [](AsyncWebServerRequest * request) {
+    String message;
+    if (request->hasParam(PARAM_MESSAGE)) {
+      message = request->getParam(PARAM_MESSAGE)->value();
+    } else {
+      message = "No message sent";
+    }
+    request->send(200, "text/plain", "Veriable Set");
+
+    SENSORGROUP.Add(message);
+    });
+
+  //---------------[ /groupfindoff ]---------------
+  server.on("/groupRemove", HTTP_GET, [](AsyncWebServerRequest * request) {
+    String message;
+    if (request->hasParam(PARAM_MESSAGE)) {
+      message = request->getParam(PARAM_MESSAGE)->value();
+    } else {
+      message = "No message sent";
+    }
+    request->send(200, "text/plain", "Veriable Set");
+
+    SENSORGROUP.Remove(message);
+    });
+
+     
   server.begin();
 
   SENSORLOG.TimeZone(config_TimeZone);
@@ -336,6 +373,17 @@ void loop() {
                                                     // for example the INFO log "BOOTUP" will never be saved b/c MAX index will never be reached.  So this will do it.
 
   if(GV_BOOTING_UP && CODE_FOR_DOx_DEVICE) SendCommandToSensorAndSetReturnGVVariables("cal");
+
+  if(GV_BOOTING_UP){
+    Serial.println(SENSORGROUP.MyGroupIP[0]);
+    Serial.println(SENSORGROUP.MyGroupIP[1]);
+    Serial.println(SENSORGROUP.MyGroupIP[2]);
+    Serial.println(SENSORGROUP.MyGroupIP[3]);
+    Serial.println(SENSORGROUP.MyGroupIP[4]);
+    Serial.println(SENSORGROUP.MyGroupIP[5]);
+    Serial.println(SENSORGROUP.MyGroupIPcurrentIndex);
+    Serial.println(SENSORGROUP.sgDBUGtext);
+  }
   
   GV_BOOTING_UP=false;
   

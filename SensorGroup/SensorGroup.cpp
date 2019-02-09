@@ -22,6 +22,41 @@ SensorGroup::SensorGroup(){
 //<<destructor>>
 SensorGroup::~SensorGroup(){/*nothing to destruct*/}
 
+void SensorGroup::LoadMyGroupIParray(){
+	int 	httpResponseCode;
+	String 	payload;
+	int		commaPosition;
+	
+	String	gURL = "http://" + PHPWebServerIP + "/SensorGroup.php?Action=load&FromMAC=" + TSsensorMAC;
+	
+	HTTPClient http;
+	http.begin(gURL);
+	http.addHeader("Content-Type", "text/plain");             //Specify content-type header			
+	httpResponseCode = http.GET();
+	if (httpResponseCode > 0) {
+		payload = http.getString();
+	}
+	
+	http.end();  //Close connection	
+	
+	payload = payload.substring(payload.indexOf("<body>") + 6, payload.indexOf("</body>"));
+	payload.replace("\n","");
+	payload.replace("\r","");
+	//sgDBUGtext = payload;	
+
+	for(int p=0; p < 29; p++){
+		commaPosition = payload.indexOf(",");
+		sgDBUGtext = sgDBUGtext + String(payload) + ",";
+		if(commaPosition < 3) p=30;
+		else{
+			MyGroupIP[p]=payload.substring(0, commaPosition);
+			payload.replace(MyGroupIP[p] + ",", "");
+			MyGroupIPcurrentIndex=p;
+		}
+	}	
+}
+
+
 void	SensorGroup::Add(String gNewMemberIP){
 	
 	int httpResponseCode;
