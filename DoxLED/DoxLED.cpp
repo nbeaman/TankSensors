@@ -3,7 +3,7 @@
 #include <FastLED.h> 
 
 //===============================
-const int LED_NUMBER_OF_LEDS = 7;
+const int LED_NUMBER_OF_LEDS = 12;
 //===============================
  
 const int LED_PIN = 15;
@@ -47,22 +47,28 @@ void DoxLED::LED_FIND_LIGHT_FOR_DOx(){
   FastLED.show();  
 }
 
-void DoxLED::LED_sensor_return_code_Fade(int code){
-  LED_Clear();
-  FastLED.setBrightness(30);
-      switch (code){
-        case 1:   fill_solid(leds, LED_NUMBER_OF_LEDS, CRGB(0,    0,    255)); break;   //blue
-        case 2:   fill_solid(leds, LED_NUMBER_OF_LEDS, CRGB(255,  0,      0)); break;   //red
-        case 254: fill_solid(leds, LED_NUMBER_OF_LEDS, CRGB(255,  255,    0)); break;   //yellow
-        case 255: fill_solid(leds, LED_NUMBER_OF_LEDS, CRGB(255,  255,  255)); break;   //white
-      }
-      for (int i=0; i<100; i++){
-        delay(15);
-        for (int j=0; j<7; j++){
-          leds[j].fadeToBlackBy ( i );   
-        }
-        FastLED.show();
-      }    
+void DoxLED::LED_sensor_return_code_Fade(int code, char charCommand){
+	int color=20;
+	
+	LED_Clear();
+	FastLED.setBrightness(30);
+    switch (code){
+        case 1:   color=150; 	break;   //blue
+        case 2:   color=0; 		break;   //red
+        case 254: color=64; 	break;   //yellow
+        case 255: color=224; 	break;   //white
+    }
+
+	LED_smoov(3,4,color,5);
+	LED_smoov(4,5,color,5);
+	LED_smoov(5,4,color,5);		
+	LED_smoov(4,3,color,5);
+	LED_smoov(3,4,color,5);
+	LED_smoov(4,5,color,5);
+	LED_smoov(5,4,color,5); 
+	LED_smoov(4,3,color,5);
+	LED_Clear();
+	
 }
 
 void DoxLED::LED_Alert(char TooWhat){
@@ -116,6 +122,20 @@ void DoxLED::LED_SendCalToDOx(){
   leds[2]=CRGB(0,0,0);
   FastLED.show();
   delay(1000);
+}
+
+void DoxLED::LED_InTheProcessOfTalkingToGroup(bool ON){
+  LED_Clear();
+  if (ON) {
+    leds[0] = CRGB::Yellow;
+	leds[3] = CRGB::Yellow;
+	leds[6] = CRGB::Yellow;
+	leds[9] = CRGB::Yellow;
+    FastLED.show();    
+  }else{
+    LED_Clear();  
+  }
+
 }
 
 void DoxLED::LED_Show_Group_Find_Color(int color){

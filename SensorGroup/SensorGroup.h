@@ -20,6 +20,7 @@ class SensorGroup{
 		void	Remove(String gRemoveMemberIP);
 		void	Add(String gNewMemberIP);
 		void 	LoadMyGroupIParray();
+		void	SendGroupCommand(String gfSubURL);
 		
 		void MyGroupIP_ADD(String gNewIP);
 		void MyGroupIP_REMOVE(String gRemoveIP);

@@ -56,6 +56,18 @@ void SensorGroup::LoadMyGroupIParray(){
 	}	
 }
 
+void	SensorGroup::SendGroupCommand(String gfSubURL){   // gfSubURL examples "/groupfind?command=20", "/groupfindoff", "/set?command=doxmax:76.50"
+	int httpResponseCode;
+	HTTPClient http;
+	for(int gc=0; gc <= MyGroupIPcurrentIndex; gc++){
+
+		String	gURL = "http://" + MyGroupIP[gc] + gfSubURL;
+		http.begin(gURL);
+		http.addHeader("Content-Type", "text/plain");             //Specify content-type header			
+		httpResponseCode = http.GET();	
+		http.end();  //Close connection		
+	}
+}
 
 void	SensorGroup::Add(String gNewMemberIP){
 	

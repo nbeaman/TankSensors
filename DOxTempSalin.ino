@@ -118,7 +118,7 @@ void setup() {
   
   IPAddress IP=WiFi.localIP();
   GV_LCD_MAIN_TEXT[3]=String(IP[0]) + '.' + String(IP[1]) + '.' + String(IP[2]) + '.' + String(IP[3]);
-Serial.println(GV_LCD_MAIN_TEXT[3]);
+  if(DBUG) Serial.println(GV_LCD_MAIN_TEXT[3]);
   
   byte mac[6];
   WiFi.macAddress(mac);
@@ -162,7 +162,7 @@ Serial.println(GV_LCD_MAIN_TEXT[3]);
       w++;
       if (w < 1000) break;
       }
-      
+  
     SendCommandToSensorAndSetReturnGVVariables(message);
 
     request->send(200, "text/plain", GV_WEB_RESPONSE_TEXT);
@@ -271,12 +271,19 @@ char *ReadDOx = &R;
 void loop() {
   
   if( CODE_FOR_TEMPSALINITY_DEVICE && GV_TEMPSALIN_CALTEMP_REMOTE_DOx ){
-        TEMPSALIN_CalTemp_RemoteDOx( TEMPSALIN_REMOTEDOX_IP );
+        float Celsius = ( GV_TEMP -32 ) * (0.555555);
+
+        DoxLED.LED_InTheProcessOfTalkingToGroup(true);
+        SENSORGROUP.SendGroupCommand("/send?command=T," + String(Celsius));
+        DoxLED.LED_InTheProcessOfTalkingToGroup(false);
         GV_TEMPSALIN_CALTEMP_REMOTE_DOx = false;
   }
       
-  if( CODE_FOR_TEMPSALINITY_DEVICE && GV_TEMPSALIN_CALTEMP_REMOTE_DOx ){ 
-        TEMPSALIN_CalSalin_RemoteDOx( TEMPSALIN_REMOTEDOX_IP );
+  if( CODE_FOR_TEMPSALINITY_DEVICE && GV_TEMPSALIN_CALSALIN_REMOTE_DOx ){ 
+
+        DoxLED.LED_InTheProcessOfTalkingToGroup(true);
+        SENSORGROUP.SendGroupCommand("/send?command=S," + String(GV_SALIN));
+        DoxLED.LED_InTheProcessOfTalkingToGroup(false);
         GV_TEMPSALIN_CALSALIN_REMOTE_DOx = false;   
   }
 
@@ -290,10 +297,13 @@ void loop() {
   }
 
   if (GV_GROUPFIND){
-    DoxLED.LED_Clear();   
+    DoxLED.LED_Clear(); 
+    if(CODE_FOR_TEMPSALINITY_DEVICE) SENSORGROUP.SendGroupCommand("/groupfind?command=" + String(GV_GROUPCOLOR));  
+
     while(DoxLED.LED_GROUPFIND_ON){
       DoxLED.LED_Show_Group_Find_Color(GV_GROUPCOLOR);
     }
+    if(CODE_FOR_TEMPSALINITY_DEVICE) SENSORGROUP.SendGroupCommand("/groupfindoff");
     DoxLED.LED_Clear();
   }
 
@@ -370,20 +380,7 @@ void loop() {
 
   SENSORLOG.HaveSensorlogLibCheckSendLogMillis();   // if logs have not reached their MAX, save logs every 5 minutes.  This is so certain logs that never reach their
                                                     // index MAX (like the INFO log).  Every 5 minutes check to see if their are any logs that need saving.
-                                                    // for example the INFO log "BOOTUP" will never be saved b/c MAX index will never be reached.  So this will do it.
-
-  if(GV_BOOTING_UP && CODE_FOR_DOx_DEVICE) SendCommandToSensorAndSetReturnGVVariables("cal");
-
-  if(GV_BOOTING_UP){
-    Serial.println(SENSORGROUP.MyGroupIP[0]);
-    Serial.println(SENSORGROUP.MyGroupIP[1]);
-    Serial.println(SENSORGROUP.MyGroupIP[2]);
-    Serial.println(SENSORGROUP.MyGroupIP[3]);
-    Serial.println(SENSORGROUP.MyGroupIP[4]);
-    Serial.println(SENSORGROUP.MyGroupIP[5]);
-    Serial.println(SENSORGROUP.MyGroupIPcurrentIndex);
-    Serial.println(SENSORGROUP.sgDBUGtext);
-  }
+                                                    // for example the INFO log "BOOTUP" will never be saved b/c MAX index will never be reached.  So this will do it
   
   GV_BOOTING_UP=false;
   
@@ -393,31 +390,6 @@ void loop() {
 //================================================================================================
 
 //Functions:
-bool TEMPSALIN_CalTemp_RemoteDOx( String SensorIPToCalibrate ){
-  HTTPClient http;
-  float Celsius = ( GV_TEMP -32 ) * (0.555555);
-  if(DBUG) Serial.print("Celsius: ");Serial.println(Celsius);
-  String URLtext = "http://" + SensorIPToCalibrate + "/send?command=T," + String(Celsius);
-  http.begin(URLtext);
-  if(DBUG) Serial.println(URLtext);
-  DoxLED.LED_SendCalToDOx();
-  int httpResponseCode = http.GET();
-  if(DBUG) Serial.println(httpResponseCode);
-  delay(2000);
-  return true;
-}
-
-bool TEMPSALIN_CalSalin_RemoteDOx( String SensorIPToCalibrate ){
-  HTTPClient http;  
-  String URLtext = "http://" + SensorIPToCalibrate + "/send?command=S," + String(GV_SALIN);
-  http.begin(URLtext);
-  if(DBUG) Serial.println(URLtext);
-  DoxLED.LED_SendCalToDOx();  
-  int httpResponseCode = http.GET();
-  if(DBUG) Serial.println(httpResponseCode);
-  delay(2000);
-  return true;  
-}
 
 void SendAlert_IFTTT(String eventName, String val1, String val2){
   // A "bad" reading can be a sensor reading out-of-range or just blank or bad data.  We want a second "bad" reading to occure within 15 minutes of the first before sending an alert
@@ -498,14 +470,10 @@ void SetVariableFromWebRequest(String SetVarCommand){
     if(tempVal == "y") GV_NOTIFY_ON="Y";
     else GV_NOTIFY_ON="N";
   } 
-  if(tempStr == "doxcaltemp"){
-    String tempVal = SetVarCommand.substring(colonCharIndex+1,SetVarCommand.length());
-    TEMPSALIN_REMOTEDOX_IP = tempVal; 
+  if(tempStr == "doxcaltemp"){ 
     GV_TEMPSALIN_CALTEMP_REMOTE_DOx = true;
   }
   if(tempStr == "doxcalsalin"){
-    String tempVal = SetVarCommand.substring(colonCharIndex+1,SetVarCommand.length()); 
-    TEMPSALIN_REMOTEDOX_IP = tempVal;
     GV_TEMPSALIN_CALSALIN_REMOTE_DOx = true;
   }  
 }
@@ -665,7 +633,8 @@ void SendCommandToSensorAndSetReturnGVVariables(String command) {
       break;                       //exit the while loop.
     }
   }
-  if (Ccommand[0] != 'r') DoxLED.LED_sensor_return_code_Fade(code);
+
+  if (Ccommand[0] != 'r') DoxLED.LED_sensor_return_code_Fade(code, Ccommand[0]);
   
   GV_SENSOR_DATA = incoming_data;
   
