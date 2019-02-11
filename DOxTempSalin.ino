@@ -342,6 +342,7 @@ void loop() {
     GV_READ_REQUEST_IN_PROGRESS=true;
     if (CODE_FOR_DOx_DEVICE){
       SendCommandToSensorAndSetReturnGVVariables(ReadDOx);
+      GV_SENSOR_DATA = String(GV_SENSOR_DATA.toFloat());
       LCD_DISPLAY(GV_SENSOR_DATA, 0, 1, NoClearLCD, PrintSerial);
       LCD_DISPLAY("  ", GV_SENSOR_DATA.length(), 1, NoClearLCD, NoSerial);
       SENSORLOG.slog('D', GV_SENSOR_DATA.toFloat());
