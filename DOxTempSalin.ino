@@ -53,8 +53,8 @@ int   GV_FIND                               = 0;
 bool  GV_GROUPFIND                          = false;
 int   GV_GROUPCOLOR;
 bool  GV_BOOTING_UP                         = true;
-bool  GV_TEMPSALIN_CALTEMP_REMOTE_DOx       = false;
-bool  GV_TEMPSALIN_CALSALIN_REMOTE_DOx      = false;
+bool  GV_TEMPSALIN_REMOTE_CORRECT_DOx_TEMP       = false;
+bool  GV_TEMPSALIN_REMOTE_CORRECT_DOx_SALIN      = false;
 char  GV_TEMPSALIN_ALTERNATE                = 'T';    // used for Temp & Salinity sensor.  Alters between 'T' and 'S'.  Device was running slow when both were read at the same time.
 //---------------------------------------------
 
@@ -269,22 +269,29 @@ char *ReadDOx = &R;
 //==========================================[ LOOP ]==============================================
 //================================================================================================
 void loop() {
-  
-  if( CODE_FOR_TEMPSALINITY_DEVICE && GV_TEMPSALIN_CALTEMP_REMOTE_DOx ){
-        float Celsius = ( GV_TEMP -32 ) * (0.555555);
+  // TEMPSALIN: Trigger to remotely correct TEMPURATURE in DOx readings by sending DOx sensors in group ip/send?command=T,<temp in celsius>
+  if( CODE_FOR_TEMPSALINITY_DEVICE && GV_TEMPSALIN_REMOTE_CORRECT_DOx_TEMP ){
+        float Celsius = ( GV_TEMP -32 ) * (0.555555);                         // GV_TEMP is tempurature (float). Calculate celsius.
 
-        DoxLED.LED_InTheProcessOfTalkingToGroup(true);
+        DoxLED.LED_InTheProcessOfTalkingToGroup(true);                        // Set LEDs to "I am sending group a message (one by one).  On until done.
         SENSORGROUP.SendGroupCommand("/send?command=T," + String(Celsius));
         DoxLED.LED_InTheProcessOfTalkingToGroup(false);
-        GV_TEMPSALIN_CALTEMP_REMOTE_DOx = false;
+        SENSORLOG.stlog('G',"Sent Correct TEMP");
+        for(int o=0; o<=SENSORLOG.stCurrentIndex; o++){
+          if(DBUG == 0) { Serial.println(SENSORLOG.stCurrentIndex);Serial.println(SENSORLOG.TLOG.type[o]);Serial.println(SENSORLOG.TLOG.Txt[0]); }
+        }
+        SENSORLOG.stSendAndClearLogs();
+        GV_TEMPSALIN_REMOTE_CORRECT_DOx_TEMP = false;
   }
-      
-  if( CODE_FOR_TEMPSALINITY_DEVICE && GV_TEMPSALIN_CALSALIN_REMOTE_DOx ){ 
+  // TEMPSALIN: Trigger to remotely correct SALINITY in DOx readings by sending DOx sensors in group ip/send?command=S,<salinity value>    
+  if( CODE_FOR_TEMPSALINITY_DEVICE && GV_TEMPSALIN_REMOTE_CORRECT_DOx_SALIN ){ 
 
         DoxLED.LED_InTheProcessOfTalkingToGroup(true);
         SENSORGROUP.SendGroupCommand("/send?command=S," + String(GV_SALIN));
         DoxLED.LED_InTheProcessOfTalkingToGroup(false);
-        GV_TEMPSALIN_CALSALIN_REMOTE_DOx = false;   
+        SENSORLOG.stlog('G',"Sent Correct SALIN");
+        SENSORLOG.stSendAndClearLogs();
+        GV_TEMPSALIN_REMOTE_CORRECT_DOx_SALIN = false;   
   }
 
   if (GV_FIND){                                                         // GV_FIND is set to true if web page ipaddress/findon is called.  Nothing is supposed to function while this is happening.
@@ -471,11 +478,16 @@ void SetVariableFromWebRequest(String SetVarCommand){
     if(tempVal == "y") GV_NOTIFY_ON="Y";
     else GV_NOTIFY_ON="N";
   } 
+  if(tempStr == "log"){
+    String tempVal = SetVarCommand.substring(colonCharIndex+1,SetVarCommand.length());
+    if(tempVal == "y") SENSORLOG.SAVELOGSTOWEBFILE = true;
+    else SENSORLOG.SAVELOGSTOWEBFILE = false;
+  }   
   if(tempStr == "doxcaltemp"){ 
-    GV_TEMPSALIN_CALTEMP_REMOTE_DOx = true;
+    GV_TEMPSALIN_REMOTE_CORRECT_DOx_TEMP = true;
   }
   if(tempStr == "doxcalsalin"){
-    GV_TEMPSALIN_CALSALIN_REMOTE_DOx = true;
+    GV_TEMPSALIN_REMOTE_CORRECT_DOx_SALIN = true;
   }  
 }
 
@@ -636,7 +648,9 @@ void SendCommandToSensorAndSetReturnGVVariables(String command) {
   }
 
   if (Ccommand[0] != 'r') DoxLED.LED_sensor_return_code_Fade(code, Ccommand[0]);
-  
+  if (Ccommand[0] != 't') { SENSORLOG.stlog('G',"CorrRemoteTEMP"); SENSORLOG.stSendAndClearLogs(); }
+  if (Ccommand[0] != 's') { SENSORLOG.stlog('G',"CorrRemoteSALI"); SENSORLOG.stSendAndClearLogs(); }
+        
   GV_SENSOR_DATA = incoming_data;
   
   // set GV_DOX,GV_TEMP,GV_SALIN

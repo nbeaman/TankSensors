@@ -1,0 +1,15 @@
+http://IP/{command}
+
+"command" can be:
+
+    /
+    /read
+    /send?command=
+
+
+    /findon
+    /findoff
+    /groupfind?command={color}
+    /groupfindoff
+    /groupAdd?command={IP Address}
+    /groupRemove?command={IP Address}

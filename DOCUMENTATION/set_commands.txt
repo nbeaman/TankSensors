@@ -1,0 +1,17 @@
+http://IP/set?command=
+
+  The following commands are for Alerts/Notifications if a sensor is out of range.
+
+    notify:{ y or n}
+    doxmax:{value}      Set DOx Max value
+    doxmin:{value}      Set DOx Max value
+    tempmax:{value}     Set DOx Max value
+    tempmin:{value}     Set DOx Max value
+    salinmax:{value}    Set DOx Max value
+    salinmin:{value}    Set DOx Max value
+
+  Other "set" commands
+  
+    log:{ y or n}       Log Sensor values and information to PHP server
+    doxcaltemp          Force TempSelin sensor to send Tempurature correction to all members in it's group
+    doxcalsalin         Force TempSelin sensor to send Salinity correction to all members in it's group

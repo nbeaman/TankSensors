@@ -65,7 +65,7 @@ class SensorLog{
 
 
 	float 	GetVal(int i);
-	
+	String 	URLcharacters(String STR);
 	void 	POSTtextFullLog(String sURL, char sensorType);
 
 
