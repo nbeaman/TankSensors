@@ -7,20 +7,20 @@
 #include <HTTPClient.h>
 
 //============[ CODE IS FOR WHICH SENSOR ]==========
-#define CODE_FOR_DOx_DEVICE           false
-#define CODE_FOR_TEMPSALINITY_DEVICE  true
+#define CODE_FOR_DOx_DEVICE           true
+#define CODE_FOR_TEMPSALINITY_DEVICE  false
 // REMEMBER: Change LED_NUMBER_OF_LEDS in DoxLED.cpp  // 7 for NeoPixel Jewel, 12 for NeoPixel Ring.
 //==================================================
 //-------------
 #if (CODE_FOR_DOx_DEVICE)
-#include <DoxConfig.h>
+#include <DoxConfig.h>          //load config vars from DOx config file in libraries
 #else
-#include <TempSalinConfig.h>
+#include <TempSalinConfig.h>    //load config vars from TempSalin config file in libraries
 #endif
 //==================================================
 
 #include <DoxLED.h>               // My custom library that uses FastLED.h
-DoxLED DoxLED;
+DoxLED DoxLED;                    // Create DoxLED Obj
 
 #include <SensorLog.h>
 SensorLog SENSORLOG;
@@ -28,13 +28,11 @@ SensorLog SENSORLOG;
 #include <SensorGroup.h>
 SensorGroup SENSORGROUP;
 
-
-
 //-----------[ DBUG ]-------------------------------
 const int DBUG = 0;               // Set this to 0 for no serial output for debugging, 1 for moderate debugging, 2 for FULL debugging to see serail output in the Arduino GUI.
 //--------------------------------------------------
 
-//-----------[ SENSOR LIMITS ]----------------
+//-----------[ SENSOR DEFAULT LIMITS ]--------
 float   GV_DOx_TOOHIGHVALUE         = 19.00;
 float   GV_DOx_TOOLOWVALUE          = 1.00;
 float   GV_TEMP_TOOHIGHVALUE        = 81.00;
@@ -53,8 +51,8 @@ int   GV_FIND                               = 0;
 bool  GV_GROUPFIND                          = false;
 int   GV_GROUPCOLOR;
 bool  GV_BOOTING_UP                         = true;
-bool  GV_TEMPSALIN_REMOTE_CORRECT_DOx_TEMP       = false;
-bool  GV_TEMPSALIN_REMOTE_CORRECT_DOx_SALIN      = false;
+bool  GV_TEMPSALIN_REMOTE_CORRECT_DOx_TEMP  = false;
+bool  GV_TEMPSALIN_REMOTE_CORRECT_DOx_SALIN = false;
 char  GV_TEMPSALIN_ALTERNATE                = 'T';    // used for Temp & Salinity sensor.  Alters between 'T' and 'S'.  Device was running slow when both were read at the same time.
 //---------------------------------------------
 
@@ -95,19 +93,19 @@ String TEMPSALIN_REMOTEDOX_IP;
 void setup() {
   Serial.begin(115200);
   //SENSORLOG
-  if(CODE_FOR_DOx_DEVICE) SENSORLOG.CodeIsFor = "DOx";
+  if(CODE_FOR_DOx_DEVICE) SENSORLOG.CodeIsFor = "DOx";    // tell the SENSORLOG library what device it is on
   else SENSORLOG.CodeIsFor = "TempSalin";
   
   //I2C
-  Wire.begin();                //enable I2C port for the button(s)
+  Wire.begin();                 //enable I2C port for the button(s)
   //BUTTON
-  button1.begin();
+  button1.begin();              //init button
   // LCD
   lcd.begin();                  //initialize the lcd
 
   //-----------------------------[ WEB SERVER ]-----------------------------------------------
 
-  WiFi.begin(config_WIFI_SSID, config_WIFI_PASSWORD);
+  WiFi.begin(config_WIFI_SSID, config_WIFI_PASSWORD);   // variables from 
 
   while (WiFi.status() != WL_CONNECTED) {
     delay(1000);
@@ -255,15 +253,15 @@ void setup() {
 
 
 //Variables used in LOOP
-char computerdata[20];           //we make a 20 byte character array to hold incoming data from a pc/mac/other.
-byte received_from_computer = 0; //we need to know how many characters have been received.
-char incoming_data[20];                //we make a 20 byte character array to hold incoming data from the D.O. circuit.
-byte in_char = 0;                //used as a 1 byte buffer to store inbound bytes from the D.O. Circuit.
-int time_ = 600;                 //used to change the delay needed depending on the command sent to the EZO Class D.O. Circuit.
-String DO;                        //char pointer used in string parsing.
-int i = 0;
-char R = 'r';
-char *ReadDOx = &R;
+char    computerdata[20];           //we make a 20 byte character array to hold incoming data from a pc/mac/other sensor.
+byte    received_from_computer = 0; //we need to know how many characters have been received.
+char    incoming_data[20];          //we make a 20 byte character array to hold incoming data from the D.O. circuit.
+byte    in_char = 0;                //used as a 1 byte buffer to store inbound bytes from the D.O. Circuit.
+int     time_ = 600;                //used to change the delay needed depending on the command sent to the EZO Class D.O. Circuit.
+String  DO;                         //char pointer used in string parsing.
+int     i = 0;
+char    R = 'r';
+char    *ReadDOx = &R;
 
 //================================================================================================
 //==========================================[ LOOP ]==============================================
@@ -341,6 +339,7 @@ void loop() {
 
     GV_THIS_IS_A_SERIAL_COMMAND=true;                                     //set gloabal indicator that the next command to the DO cercuit is from the Serial Monitor.
     String str_serial_command=computerdata;                               //convert char array to String type for the function that follows
+    
     SendCommandToSensorAndSetReturnGVVariables(str_serial_command);                    //send the command received by the serial monitoring device.
   }
   
@@ -570,7 +569,6 @@ void SensorHeartBeat() {
 }
 
 void SendCommandToSensorAndSetReturnGVVariables(String command) {
-
   
   char    Ccommand[20];
   byte    code = 0;                   //used to hold the I2C response code.
@@ -647,9 +645,9 @@ void SendCommandToSensorAndSetReturnGVVariables(String command) {
     }
   }
 
-  if (Ccommand[0] != 'r') DoxLED.LED_sensor_return_code_Fade(code, Ccommand[0]);
-  if (Ccommand[0] != 't') { SENSORLOG.stlog('G',"CorrRemoteTEMP"); SENSORLOG.stSendAndClearLogs(); }
-  if (Ccommand[0] != 's') { SENSORLOG.stlog('G',"CorrRemoteSALI"); SENSORLOG.stSendAndClearLogs(); }
+  if (Ccommand[0] != 'r') DoxLED.LED_sensor_return_code_Fade(code, Ccommand[0]);  //Show response to a serial command, only if not r b/c r is every used offten to read data
+  if (Ccommand[0] == 't') { SENSORLOG.stlog('G',"CorrRemoteTEMP"); SENSORLOG.stSendAndClearLogs(); }  // t means send Temp Correction
+  if (Ccommand[0] == 's') { SENSORLOG.stlog('G',"CorrRemoteSALI"); SENSORLOG.stSendAndClearLogs(); }  // s means send Salinity Correction
         
   GV_SENSOR_DATA = incoming_data;
   
